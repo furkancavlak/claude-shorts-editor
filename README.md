@@ -3,7 +3,7 @@
 </p>
 
 **Short Motoru is an editor, not a video generator.** You bring the raw footage (your own game recording, or a stream you are allowed to clip) and tell your own Claude Code agent in the chat what you want. The agent picks the moment and writes the edit as code; ffmpeg, HyperFrames and Whisper render a vertical Short or clip on your own PC.
-It needs your own Claude subscription, takes about 25–30 minutes per video, and the edit quality is a first version: the agent looks at frames and measurements, it cannot hear the sound or watch the motion. Tested on one Windows 10 PC.
+It needs your own Claude subscription, takes about 25–30 minutes per video, and the edit quality is a first version: the agent looks at frames and measurements, it cannot hear the sound or watch the motion. Tested on two Windows PCs (Windows 10 and Windows 11).
 
 <p align="center">
   <img src="docs/gorsel/demo.gif" width="720" alt="Left: a 16.5-second horizontal recording with a bar marking the seven parts used; the marker jumps to the source moment each part comes from. Right: the 12.6-second vertical Short cut from it, with the spoken words on screen.">
@@ -36,7 +36,7 @@ Yapan: Furkan Cavlak (yapay zekâ üzerine Türkçe YouTube kanalı).
 - **Bir video zaman alır.** Bir video ajanın yaklaşık 25–30 dakikasını alır (denemelerde bir iş 12 ile 38 dakika arası sürdü; kısa sürenler düz çıktı). O sırada Claude Code sohbetin açık kalır. Uzun bir kayıtta buna konuşmayı yazıya dökme süresi eklenir (aşağıda "Yazıya dökme ne kadar sürer").
 - **Kendi Claude aboneliğin gerekir.** Deponun kendisi açık kaynaktır (MIT), ama işi senin Claude Code'un yapar ve her video aboneliğinin kullanım hakkından harcar; ne kadar harcadığını ölçmedik. Motor da izleme sayfası da Claude'u hiçbir zaman kendisi başlatmaz.
 - **Tarzını öğrendiği ölçülmedi.** Tarz defteri yalnız söylediklerini hatırlar ve ajana ipucu olarak verir; videoların zamanla senin tarzına oturduğunu ölçmedik.
-- **Tek bir bilgisayarda denendi:** Windows 10, Ryzen 5 7500F, RTX 4060 Ti 16 GB, 32 GB RAM. Mac ve Linux'ta denenmedi. Ekran kartı yalnız konuşmayı yazıya dökmeyi hızlandırır, o da ek kütüphaneler kuruluysa; motorun geri kalanı onsuz da çalışır.
+- **İki Windows bilgisayarda denendi:** Windows 10 (Ryzen 5 7500F, RTX 4060 Ti 16 GB, 32 GB RAM) ve ikinci bir Windows 11 (Ryzen 5 7500F, RTX 4060, 16 GB RAM; depo GitHub'dan indirilip kurulum rehberiyle baştan kuruldu). Mac ve Linux'ta denenmedi. Ekran kartı yalnız konuşmayı yazıya dökmeyi hızlandırır, o da ek kütüphaneler kuruluysa; motorun geri kalanı onsuz da çalışır.
 
 ## Gizlilik: ne bilgisayarında kalır, ne Claude'a gider
 - **Video dosyan bilgisayarından çıkmaz.** Kesme, yazıya dökme (yerel Whisper) ve videoya çevirme senin bilgisayarında yapılır.
