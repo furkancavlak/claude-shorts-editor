@@ -25,7 +25,7 @@ Bu belgeyi kullanıcının kodlama ajanı yürütür. Kullanıcı kod bilmez; se
 | 6 | HyperFrames'in Chrome'u (152.0.7977.30) | ~270 MB | bilinmiyor (indirirken toplamı yazar) |
 | 7 | Whisper modeli `large-v3-turbo` | 1,6 GB | ~1,6 GB |
 | 8 | Türkçe Windows sesi (isteğe bağlı) | bilinmiyor | bilinmiyor |
-| 9 | Ekran kartı (CUDA) kütüphaneleri (isteğe bağlı, yalnız NVIDIA kartta; yoksa uzun kayıt işlemcide yavaş yazıya dökülür) | ~1,5 GB | bilinmiyor |
+| 9 | Ekran kartı (CUDA) kütüphaneleri (isteğe bağlı; yalnız `ekran_karti.oneri` `kur` ya da `sor` ise sorulur) | ~1,5 GB | bilinmiyor |
 
 Toplam (zorunlular): diskte ~3,4 GB. Yavaş bir hatta (~12 Mbit) yalnız Whisper modeli 15–20 dakika sürer.
 Sonradan büyüyenler: HyperFrames, Chrome'unu ve yazı tiplerini `%USERPROFILE%\.cache\hyperframes` altında ortak tutar; iş klasöründe ayrı bir kare önbelleği (`.cache`) oluşmaz. Denenen bilgisayarda bu klasör 639 MB (iki Chrome sürümü 541 MB + yazı tipi önbelleği 98 MB; yazı tipi önbelleğinin ne zaman dolduğu bu depoda denenmedi). İş klasörleri denemelerde iş başına 150–330 MB tuttu (10 dakikalık kayıt, kısa Short'lar).
@@ -37,8 +37,8 @@ py -3 kur_kontrol.py --json
 - `py` tanınmıyorsa Python ya da onun `py` başlatıcısı yok: adım 1'den başla.
 - Çıkış kodu 1 normaldir: zorunlu bir şey eksik demektir, JSON yine basılır.
 - Çıktı tek bir JSON: `ogeler[]` içinde her gereksinimin `id`, `baslik`, `sart` (zorunlu mu), `durum` (`var` / `yok` / `eski` / `bilinmiyor`), `surum`, `denenen`, `adim` (bu belgedeki adım no; 0 = depo ya da Windows'un kendi dosyası) ve `not` alanı var. `eksik_sart` boşsa zorunlu her şey kurulu: adım 10'a geç.
-- **`hazir: true` ekran kartını kapsamaz.** Üst düzeydeki `yazma_cihazi`'na (`cuda` | `cpu`) ve `uyarilar`'a ayrıca bak: `cpu` ise yazıya dökme işlemcide çalışacak demektir (ayrıntı `gpu` bloğunda). Adım 9'u atlama; orada ne söyleyeceğin yazıyor.
-- Kullanıcıya kısa özet ver: "Şunlar hazır, şunlar eksik; inecekler: …, toplam ~… Kurayım mı?"
+- **`hazir: true` ekran kartını kapsamaz.** Üst düzeydeki `yazma_cihazi`'na (`cuda` | `cpu`) ve `uyarilar`'a ayrıca bak: `cpu` ise yazıya dökme işlemcide çalışacak demektir (ayrıntı `gpu` bloğunda). Ekran kartı dosyalarını önerip önermeyeceğini üst düzeydeki `ekran_karti.oneri` söyler: adım 9.
+- Kullanıcıya kısa özet ver: "Şunlar hazır, şunlar eksik; inecekler: …, toplam ~… Kurayım mı?" Ekran kartı dosyalarını bu soruya yalnız `ekran_karti.oneri` `kur` ya da `sor` ise, kartın adıyla ve ayrı bir seçenek olarak ekle; `kurma` ya da `kurulu` ise hiç anma.
 - PowerShell'de Türkçe harfler bozuk görünürse önce `[Console]::OutputEncoding = [Text.Encoding]::UTF8` çalıştır. İnsan için düz liste: `py -3 kur_kontrol.py` (son satır `SONUC: HAZIR` ya da `SONUC: EKSIK: <id'ler>`).
 - `durum: "yok"` olan `adim: 0` öğeleri (Anton, YuNet, GSAP) depo eksik indirilmiş demek: kullanıcıdan depoyu yeniden indirmesini iste.
 
@@ -89,12 +89,17 @@ py -3 kur_kontrol.py --json
 - Kontrol: `kur_kontrol` öğesi `turkce_ses` (ör. `Microsoft Tolga`).
 - Kur: otomatik yapma. Kullanıcıya anlat: Windows Ayarlar → Saat ve dil → Konuşma → Ses ekle → Türkçe. Boyutu bilinmiyor. Yoksa deneme yine çalışır (ses yerine ton kullanır, kelime kontrolünü atlar).
 
-## 9. Ekran kartıyla yazıya dökme (kurmak isteğe bağlı; bakmak ve kullanıcıya söylemek her kurulumda yapılır)
-**Bu adımı atlama.** Kurmak zorunlu değil, kullanıcı "hayır" derse kurulum yine tamamdır. Ama bakmadan ve söylemeden geçme: kullanıcı ekran kartı var diye hızlı olacağını sanar.
+## 9. Ekran kartıyla yazıya dökme (isteğe bağlı; ne söyleyeceğini `ekran_karti` belirler)
+**Bu adımı atlama, ama her bilgisayarda sorma.** `py -3 kur_kontrol.py --json` kartı kendisi tanır (önce `nvidia-smi`, yoksa sistemin aygıt listesi; hiçbir şey indirmez) ve üst düzeyde `ekran_karti` verir: `ad`, `nvidia` (`true` | `false` | `null` = tanınamadı), `bellek_gb`, `oneri`, `neden` (kullanıcıya söylenecek gerekçe).
 
-- **Ne:** Whisper'ın NVIDIA ekran kartında çalışması için gereken 9 dosya (CUDA 12 cuBLAS + cuDNN 9; adları `kod/ses_yazi.py` içinde `CUDA_DLL`). Birlikte ~1,5 GB. Kart ve sürücü tek başına yetmez: bu dosyalar bulunamazsa yazıya dökme işlemcide çalışır ve bunu `UYARI: EKRAN KARTI KULLANILMIYOR` satırıyla, süre tahminiyle yazar.
-- **`"hazir": true` yanıltır:** `kur_kontrol`'ün üstteki `hazir` değeri yalnız zorunluları sayar. Denenen bilgisayarda (RTX 4060 Ti) `hazir: true` iken yazıya dökme işlemcide çalıştı. Bak: üst düzeyde `yazma_cihazi` ve `uyarilar`.
-- **Ne kazandırır** (denenen bilgisayar: Ryzen 5 7500F, RTX 4060 Ti 16 GB):
+- **Ne:** Whisper'ın NVIDIA ekran kartında çalışması için 9 dosya (CUDA 12 cuBLAS + cuDNN 9; adları `kod/ses_yazi.py` içinde `CUDA_DLL`), birlikte ~1,5 GB. Kart ve sürücü tek başına yetmez: dosyalar bulunamazsa yazıya dökme işlemcide çalışır ve `UYARI: EKRAN KARTI KULLANILMIYOR` satırını süre tahminiyle yazar. `hazir: true` bunu kapsamaz (denenen bilgisayarda `hazir: true` iken işlemcide çalıştı).
+- **`oneri`'ye göre:**
+  - `kurma` (NVIDIA yok, macOS ya da kartın belleği modelden küçük): ekran kartı dosyalarından hiç söz etme, sorma. Tek cümle yeter, ör. "Ekran kartın NVIDIA değil; yazıya dökme işlemcide çalışır, 1 saatlik kayıt ~11 dakika sürer." (gerekçe `neden`'de).
+  - `kurulu`: dosyalar zaten var, yazıya dökme ekran kartında çalışır. Sorma.
+  - `kur`: bir kez, boyutuyla sor: "Ekran kartın <ad>; ~1,5 GB'lık dosyalarla uzun yayın kayıtları ekran kartında yazıya dökülür: 1 saatlik kayıt ~11 dakika yerine ~2 dakika. Yalnız Short yapacaksan gerekmez (Short'ta ses kısa). Kurayım mı?" İndirme her zaman "evet"le.
+  - `sor`: önce `neden`'i söyle (kart tanınamadı, `nvidia-smi` çalışmıyor ya da bellek az olabilir), sonra aynı soruyu sor. `nvidia-smi` çalışmıyorsa dosyalar sürücüsüz işe yaramaz; NVIDIA sürücüsünü sen kurma, kullanıcı kurar.
+  - "Hayır" derse üstelemeden geç; her uzun kayıttan önce beklenen süreyi söylersin (işlemcide saatlik kayıt başına ~11 dk).
+- **Ölçülen** (denenen bilgisayar: Ryzen 5 7500F, RTX 4060 Ti 16 GB):
 
 | Ses | Ekran kartıyla | İşlemcide |
 |---|---|---|
@@ -103,22 +108,15 @@ py -3 kur_kontrol.py --json
 | 1 saat | 108 sn (~2 dk) | 649 sn (~11 dk) |
 | 3 saat | ~5,5 dk (1 saatlikten hesap) | ~32 dk (1 saatlikten hesap) |
 
-- **Nasıl bakarsın:** `py -3 kur_kontrol.py --json`: üst düzeyde `yazma_cihazi`, ayrıntı `gpu` bloğunda:
-  - `nvidia: false`: NVIDIA kart yok. Bir şey kurma; yazıya dökme işlemcide çalışır. Uzun kayıt verecekse süreyi yine söyle.
-  - `hazir: true` (`yazma_cihazi: "cuda"`): yazıya dökme ekran kartında çalışır. Yapacak bir şey yok.
-  - `nvidia: true`, `hazir: false`: yazıya dökme işlemcide çalışacak. `eksik_dll` bulunamayan dosyaların adları; `bulunan_klasorler` bulunanların yeri ve nereden bulunduğu; `oneri` kullanıcıya okunacak cümle; `yazma_suresi` ölçülen süreler. Diğer alanlar: `kart`, `surucu`, `bellek_mb`, `ct2_cuda_aygit`, `whisper_cuda_dll` (şu an verilen klasörler).
-- **Kullanıcıya söyle** (kart var, `hazir: false` ise; bir kez, zorlamadan): "Ekran kartın var ama yazıya dökme şu an işlemcide çalışacak. Kısa Short'larda fark etmez. Uzun yayın kaydında fark büyür: denenen bilgisayarda 1 saatlik kayıt işlemcide yaklaşık 11 dakika, ekran kartıyla 2 dakika sürdü; 3 saatlik bir yayın işlemcide yaklaşık yarım saat eder. Hızlandırmak için ~1,5 GB dosya gerekir. Kurayım mı, böyle mi kalsın?"
-- **Karar:**
-  - Yalnız Short yapılacaksa (ses 1 dakikadan kısa) gerek yok.
-  - Uzun yayın kaydından Klip yapılacaksa öner. "Hayır" derse üstelemeden geç; her uzun kayıttan önce beklenen süreyi söylersin (işlemcide saatlik kayıt başına ~11 dk).
-- Gerekenler: NVIDIA sürücüsü (`nvidia-smi` çalışmalı; sürücüyü sen kurma) ve yukarıdaki 9 dosya.
+- **Ayrıntı `gpu` bloğunda** (`yazma_cihazi: "cuda"` ise yapacak bir şey yok): `eksik_dll` bulunamayan dosyalar, `bulunan_klasorler` bulunanların yeri ve nereden bulunduğu, `oneri` işlemcide çalışacaksa okunacak cümle, `yazma_suresi` ölçülen süreler; ayrıca `kart`, `surucu`, `bellek_mb`, `ct2_cuda_aygit`, `whisper_cuda_dll`.
+- **"Evet" derse:** NVIDIA sürücüsü (`nvidia-smi` çalışmalı; sürücüyü sen kurma) ve yukarıdaki 9 dosya gerekir.
   - Kütüphaneler bulunduğu yerden kendiliğinden kullanılır: bu Python'un `nvidia-*` ya da `torch` paketleri, `CUDA_PATH`, Program Files altındaki CUDA 12 / cuDNN 9 kurulumu, PATH. Ayar gerekmez.
   - Başka yerdeyse (ör. başka bir programın Python ortamındaki `torch\lib`; başka ortamlar aranmaz) `WHISPER_CUDA_DLL` ortam değişkeni o klasörü gösterir (birden çok klasör `;` ile). Bu bir bilgisayar ayarıdır: önce kullanıcıya söyle, onayını al. Yeni açılan terminallerde geçerli olur: kullanıcıdan Claude Code'u kapatıp açmasını iste (izleme sayfası açıksa onu da kapatıp yeniden aç).
   - Dosyalar hiç yoksa ve kullanıcı isterse (denenmemiş yol): `py -3 -m pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"`; bu Python'un paketlerine indiği için ayar gerekmez, `kur_kontrol` ile bak. Denenen bilgisayarda bu dosyalar bir PyTorch kurulumunun `torch\lib` klasöründen geldi.
 - Doğrulama: `py -3 kod/ses_yazi.py --cihaz` (model açmaz, birkaç saniye): `CIHAZ cuda (ekran karti); kutuphaneler: ...` ya da `CIHAZ cpu. UYARI: ...` (eksik dosya sayısı ve ilk üçünün adı). `py -3 kur_kontrol.py --json` → `yazma_cihazi: "cuda"`. Yazıya dökülen her işin `ses.json` / `yazi.json`'unda `model` alanı `large-v3-turbo/cuda` ya da `.../cpu` der.
 
 ## 10. Son kontrol
-`py -3 kur_kontrol.py --json` → `"hazir": true` ve `eksik_sart: []`. Değilse eksik öğenin `adim`'ına dön. `gpu.hazir` bu sonuca girmez: adım 9'a baktıysan ve kullanıcıya söylediysen yeter.
+`py -3 kur_kontrol.py --json` → `"hazir": true` ve `eksik_sart: []`. Değilse eksik öğenin `adim`'ına dön. `gpu.hazir` bu sonuca girmez: adım 9'u `ekran_karti.oneri`'ye göre yaptıysan yeter.
 
 ## 11. Kendi kendine deneme (görüntü gerekmez)
 ```
@@ -132,7 +130,7 @@ py -3 kurulum_testi.py
 - Kullanıcıya her parçayı sade Türkçe söyle, ör. "Yazıya dökme çalışıyor, cümleyi doğru duydu. Videoya çevirme çalışıyor. Teknik kontrol geçti."
 
 ## 12. Bitiş
-Kullanıcıya söyle: neler kuruldu, isteğe bağlı olup kurulmayanlar (Türkçe ses; ekran kartı kütüphaneleri, kurulmadıysa "uzun kayıtta yazıya dökme işlemcide çalışır, saatlik kayıt başına yaklaşık 11 dakika sürer" diye) ve nasıl kullanacağı: "Ne istediğini bana yaz, örneğin 'şu videodan 3 klip çıkar: <dosyanın yolu>' ya da 'şu metinle bir Liste Short'u yap, videolar şu klasörde'. İlerlemeyi görmek istersen 'paneli aç' de." İlk işi birlikte yapmayı öner.
+Kullanıcıya söyle: neler kuruldu, isteğe bağlı olup kurulmayanlar (Türkçe ses; ekran kartı kütüphaneleri kurulmadıysa ya da `kurma` geldiyse dosyaları anmadan yalnız "uzun kayıtta yazıya dökme işlemcide çalışır, saatlik kayıt başına yaklaşık 11 dakika sürer" diye) ve nasıl kullanacağı: "Ne istediğini bana yaz, örneğin 'şu videodan 3 klip çıkar: <dosyanın yolu>' ya da 'şu metinle bir Liste Short'u yap, videolar şu klasörde'. İlerlemeyi görmek istersen 'paneli aç' de." İlk işi birlikte yapmayı öner.
 
 ## Sık hatalar
 | Görülen | Neden | Ne yap |

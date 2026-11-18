@@ -82,7 +82,7 @@ Klip işinde motor önce bütün kaydın konuşmasını yazıya döker. Bu süre
 | Ekran kartı kütüphaneleri var (RTX 4060 Ti) | 22–36 saniye | 108 saniye (~2 dk) | ~5,5 dakika (hesap) |
 | Kütüphaneler yok, işlemci çalışır (Ryzen 5 7500F) | 157 saniye (bilgisayar o sırada başka iş de yapıyordu) | 649 saniye (~11 dk) | ~32 dakika (hesap) |
 
-- **NVIDIA ekran kartın olsa bile bu kütüphaneler (~1,5 GB, isteğe bağlı) bulunamazsa yazıya dökme işlemcide çalışır ve uzun kayıt uzun sürer:** her saatlik kayıt için ~11 dakika. Kurulum kontrolü bu hâlde de "hazır" der, ama ekran kartının kullanılmayacağını ayrıca yazar; iş açılırken de cihaz ve tahmini süre yazılır.
+- **NVIDIA ekran kartın olsa bile bu kütüphaneler (~1,5 GB, isteğe bağlı) bulunamazsa yazıya dökme işlemcide çalışır ve uzun kayıt uzun sürer:** her saatlik kayıt için ~11 dakika. Kurulum kontrolü bu hâlde de "hazır" der, ama ekran kartının kullanılmayacağını ayrıca yazar; iş açılırken de cihaz ve tahmini süre yazılır. Kurulumda ajan kartını kendisi tanır ve bu dosyaları yalnız NVIDIA kartta, yine sorarak önerir.
 - Kısa seslendirmeli Short'ta fark etmez (5 saniyelik cümle işlemcide ~6 saniye).
 - Emin olmak için ajana sor: "Yazıya dökme ekran kartında mı çalışıyor?" Uzun bir kayıt verdiğinde ajan başlamadan önce ne kadar bekleyeceğini söyler.
 - Denediğimiz en uzun kayıt 1 saatti; 3 saatlik süre ondan hesaplandı, denenmedi.

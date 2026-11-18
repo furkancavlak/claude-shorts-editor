@@ -13,12 +13,14 @@ Every item has: id, baslik, sart (required?), durum ("var" | "yok" | "eski" | "b
 Top level: hazir (every required item is "var"; the GPU is optional and NOT in it), eksik_sart, eksik_istege_bagli,
 yazma_cihazi ("cuda" | "cpu": where transcription will run), uyarilar (a list; the GPU sentence with the measured cost
 when it is "cpu": one hour of recording 649 s on the processor, 108 s on the graphics card), gpu (NVIDIA card, where
-the CUDA libraries were found: same search as kod/ses_yazi.py cuda_ara, WHISPER_CUDA_DLL first). In the plain list a
-GPU that will not be used is printed between lines of "!" and repeated on the SONUC line.
+the CUDA libraries were found: same search as kod/ses_yazi.py cuda_ara, WHISPER_CUDA_DLL first), ekran_karti (which card
+this is and whether the ~1.5 GB GPU files are worth offering: ad, nvidia true|false|null, bellek_gb, oneri "kur" | "kurma"
+| "sor" | "kurulu", neden; from nvidia-smi, else the system's own device list; see ekran_karti_tani). In the plain list
+an NVIDIA card that will not be used is printed between lines of "!" and repeated on the SONUC line.
 Exit code: 0 = ready, 1 = something required is missing (the report is printed either way).
 Syntax kept simple on purpose, so an old Python can still report itself as too old.
 """
-import json, os, platform, re, shutil, subprocess, sys, time
+import glob, json, os, platform, re, shutil, subprocess, sys, time
 
 KOK = os.path.dirname(os.path.abspath(__file__))
 WIN = os.name == "nt"
@@ -324,6 +326,118 @@ def dosyalar():
         "" if c else "PATH'te görünmedi (başka bir kodlama ajanıyla da çalışır).", c or "")
 
 
+# ---------------------------------------------------------------- graphics card: offer the GPU files only where they help
+# Card memory the transcriber needs: kod/ses_yazi.py model_ac opens large-v3-turbo on the card with compute_type="float16"
+# and its model.bin is stored in float16 (MODELLER: 1 617 884 929 bytes), so the weights alone take ~1.5 GiB of card
+# memory. A card smaller than that cannot hold the model ("kurma"). The working room on top (beam_size=5, 30 s windows,
+# the CUDA libraries) and the desktop's own share (1.8 GiB in use on the tested PC, nvidia-smi memory.used) were NOT
+# measured for this engine, so KART_AZ_GB is a cautious line, not a known need: under it the agent asks ("sor", "bellek
+# az olabilir") instead of recommending. If the card fails anyway, ses_yazi.py falls back to the processor by itself.
+MODEL_GIB = MODELLER[0][1] / 2.0 ** 30
+KART_AZ_GB = 4
+PCI_SATICI = {"10de": "NVIDIA", "1002": "AMD", "8086": "Intel"}
+
+
+def gb_yaz(x):
+    return ("%.1f" % x).rstrip("0").rstrip(".").replace(".", ",")
+
+
+def kart_listesi():
+    """The system's own list of display adapters (nothing is installed or downloaded): Windows Win32_VideoController
+    (name + PCI vendor id from PNPDeviceID; it is there even without the card's driver), macOS system_profiler, Linux
+    /sys/bus/pci. -> ([(name, PCI vendor id or "")], source) or (None, "") when it could not be read."""
+    try:
+        if WIN:
+            ps = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-CimInstance Win32_VideoController | "
+                  "ForEach-Object { $_.Name + '|' + $_.PNPDeviceID }")
+            kod, cikti = calis(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], 60)
+            if kod != 0:
+                return None, ""
+            out = []
+            for s in cikti.splitlines():
+                if "|" in s:
+                    ad, pnp = s.split("|", 1)
+                    m = re.search(r"VEN_([0-9A-Fa-f]{4})", pnp)
+                    out.append((ad.strip(), m.group(1).lower() if m else ""))
+            return out, "Windows aygıt listesi"
+        if platform.system() == "Darwin":
+            kod, cikti = calis(["system_profiler", "SPDisplaysDataType"], 60)
+            if kod != 0:
+                return None, ""
+            return [(m.strip(), "") for m in re.findall(r"Chipset Model:\s*(.+)", cikti)], "system_profiler"
+        out = []
+        for d in sorted(glob.glob("/sys/bus/pci/devices/*")):
+            try:
+                if not open(os.path.join(d, "class")).read().strip().startswith("0x03"):   # 0x03: display controller
+                    continue
+                v = open(os.path.join(d, "vendor")).read().strip().lower().replace("0x", "")
+            except Exception:
+                continue
+            out.append(("%s (PCI %s)" % (PCI_SATICI.get(v, "?"), v), v))
+        return out, "PCI listesi"
+    except Exception:
+        return None, ""
+
+
+def ekran_karti_tani(smi, liste, isletim, dosyalar=False, kaynak=""):
+    """Decide from what the system said (no commands run here, so it can be tried with made-up input).
+    smi: text of `nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader,nounits` (None = not
+    found or failed); the first line is card 0, the one CTranslate2 uses. liste/kaynak: kart_listesi(), used only when
+    smi is None. isletim: platform.system(). dosyalar: the CUDA libraries were already found and work (gpu() 'hazir').
+    -> {"ad", "nvidia": True|False|None, "bellek_gb", "oneri": "kur"|"kurma"|"sor"|"kurulu", "neden", "kaynak"}"""
+    e = {"ad": "", "nvidia": None, "bellek_gb": None, "oneri": "sor", "neden": "", "kaynak": ""}
+    satirlar = (smi or "").strip().splitlines()
+    if satirlar:
+        p = [x.strip() for x in satirlar[0].split(",")]
+        e.update(ad=p[0], nvidia=True, kaynak="nvidia-smi")
+        if len(p) > 2 and re.match(r"^\d+(\.\d+)?$", p[2]):
+            e["bellek_gb"] = round(float(p[2]) / 1024, 1)          # nvidia-smi gives MiB
+    elif liste:
+        nv = [a for a, v in liste if v == "10de" or "nvidia" in a.lower()]
+        gercek = [a for a, v in liste if v or isletim == "Darwin"]   # a PCI device (not a remote/virtual display)
+        if nv:
+            e.update(ad=nv[0], nvidia=True)
+        elif gercek:
+            e.update(ad=", ".join(gercek), nvidia=False)
+        else:
+            e["ad"] = ", ".join(a for a, v in liste)
+        e["kaynak"] = kaynak
+    islemci = "yazıya dökme işlemcide çalışır: 1 saatlik kayıt ~%d dk" % round(SANIYE_SAAT["cpu"] / 60)
+    if isletim == "Darwin":
+        e.update(oneri="kurma", neden="macOS'ta ekran kartı dosyaları (CUDA 12) çalışmaz; %s." % islemci)
+    elif e["nvidia"] is False:
+        e.update(oneri="kurma", neden="NVIDIA ekran kartı yok, ekran kartı dosyaları işe yaramaz; %s." % islemci)
+    elif e["nvidia"] is None:
+        e["neden"] = "Ekran kartı tanınamadı: NVIDIA ise dosyalar uzun kaydı hızlandırır, değilse işe yaramaz."
+    elif dosyalar:
+        e.update(oneri="kurulu", neden="Ekran kartı dosyaları zaten var; yazıya dökme ekran kartında çalışır.")
+    elif e["kaynak"] != "nvidia-smi":
+        e["neden"] = ("NVIDIA kart görünüyor ama nvidia-smi çalışmıyor: sürücüsü kurulu değil ya da bozuk olabilir; dosyalar "
+                      "sürücüsüz işe yaramaz (sürücüyü kullanıcı kurar).")
+    elif e["bellek_gb"] is None:
+        e["neden"] = "NVIDIA kart var ama belleği okunamadı; bellek az olabilir."
+    elif e["bellek_gb"] < MODEL_GIB:
+        e.update(oneri="kurma", neden="Kartın belleği (%s GB) yazıya dökme modelinden (~1,6 GB) küçük, model sığmaz; %s."
+                 % (gb_yaz(e["bellek_gb"]), islemci))
+    elif e["bellek_gb"] < KART_AZ_GB:
+        e["neden"] = ("Bellek az olabilir: model kartta tek başına ~1,6 GB tutar, kartta %s GB var; çalışırken gereken ek yer "
+                      "ölçülmedi. Kartta açılamazsa yazıya dökme kendiliğinden işlemciye döner." % gb_yaz(e["bellek_gb"]))
+    else:
+        e.update(oneri="kur", neden="NVIDIA kart, %s GB bellek: ~1,5 GB'lık dosyalarla 1 saatlik kayıt ~%d dk yerine ~%d dk'da "
+                 "yazıya dökülür." % (gb_yaz(e["bellek_gb"]), round(SANIYE_SAAT["cpu"] / 60), round(SANIYE_SAAT["cuda"] / 60)))
+    return e
+
+
+def ekran_karti(smi, dosyalar):
+    """ekran_karti_tani() with the system's device list read only when nvidia-smi said nothing. Never raises."""
+    try:
+        liste, kaynak = (None, "") if smi else kart_listesi()
+        return ekran_karti_tani(smi, liste, platform.system(), dosyalar, kaynak)
+    except Exception as ex:
+        return {"ad": "", "nvidia": None, "bellek_gb": None, "oneri": "sor", "kaynak": "",
+                "neden": "Ekran kartı tanınamadı (%s): NVIDIA ise dosyalar uzun kaydı hızlandırır." % type(ex).__name__}
+
+
 # ---------------------------------------------------------------- gpu
 def gpu():
     """Will transcription run on the graphics card? Same search as kod/ses_yazi.py (cuda_ara): WHISPER_CUDA_DLL,
@@ -336,9 +450,11 @@ def gpu():
                           "olcum": "18.11.2026, 60 dk yayın kaydı, large-v3-turbo; Ryzen 5 7500F / RTX 4060 Ti"}}
     smi = shutil.which("nvidia-smi") or (os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "nvidia-smi.exe")
                                          if WIN else None)
+    smi_cikti = None
     if smi and os.path.isfile(smi):
         kod, cikti = calis([smi, "--query-gpu=name,driver_version,memory.total", "--format=csv,noheader,nounits"])
         if kod == 0 and cikti.strip():
+            smi_cikti = cikti
             p = [x.strip() for x in cikti.strip().splitlines()[0].split(",")]
             g.update(nvidia=True, kart=p[0], surucu=p[1] if len(p) > 1 else "", bellek_mb=p[2] if len(p) > 2 else "")
     try:
@@ -355,9 +471,14 @@ def gpu():
         g["eksik_dll"] = [d for d in CUDA_DLL if not any(os.path.isfile(os.path.join(k, d)) for k in kl)] if WIN else []
     saat = "1 saatlik kayıt işlemcide ~%d dk, ekran kartıyla ~%d dk (3 saat: ~%d dk / ~%d dk)" % (
         round(SANIYE_SAAT["cpu"] / 60), round(SANIYE_SAAT["cuda"] / 60), round(3 * SANIYE_SAAT["cpu"] / 60), round(3 * SANIYE_SAAT["cuda"] / 60))
-    if g["nvidia"] and not g["eksik_dll"] and (g["ct2_cuda_aygit"] or 0) > 0:
+    hazir = bool(g["nvidia"] and not g["eksik_dll"] and (g["ct2_cuda_aygit"] or 0) > 0)
+    ek = ekran_karti(smi_cikti, hazir)
+    if hazir:
         g.update(hazir=True, cihaz="cuda")
         g["oneri"] = "GPU hazır: yazıya dökme ekran kartında çalışır (%s)." % saat
+    elif not g["nvidia"] and ek["nvidia"]:
+        g["oneri"] = ("EKRAN KARTI KULLANILMAYACAK: NVIDIA kart görünüyor (%s) ama nvidia-smi çalışmıyor (sürücüsü kurulu "
+                      "değil ya da bozuk olabilir; sürücüyü kullanıcı kurar). Yazıya dökme işlemcide çalışır: %s." % (ek["ad"], saat))
     elif not g["nvidia"]:
         g["oneri"] = ("EKRAN KARTI KULLANILMAYACAK: NVIDIA ekran kartı görünmüyor, yazıya dökme işlemcide çalışır: %s. "
                       "Kurulacak bir şey yok; uzun kayıtta işi açmadan önce kullanıcıya süreyi söyle." % saat)
@@ -368,7 +489,7 @@ def gpu():
                       "göstersin; yoksa KURULUM-AJAN.md adım 9 (~1,5 GB indirme, kullanıcı onaylarsa). Kısa seslendirmeli "
                       "Short'ta fark küçük; uzun yayın kaydında büyük." % (g["kart"], len(g["eksik_dll"]), len(CUDA_DLL),
                                                                           ", ".join(g["eksik_dll"][:3]) + (" ..." if len(g["eksik_dll"]) > 3 else ""), saat))
-    return g
+    return g, ek
 
 
 def main():
@@ -381,14 +502,16 @@ def main():
     if python_kontrol():
         paketler()
     ffmpeg(); node(); hyperframes(); whisper(); turkce_ses(); dosyalar()
-    g = gpu()
+    g, ek = gpu()
     eksik = [o["id"] for o in ogeler if o["sart"] and o["durum"] != "var"]
     istege = [o["id"] for o in ogeler if not o["sart"] and o["durum"] not in ("var",) and o["id"] not in ("isletim",)]
     uyarilar = [] if g["hazir"] else [g["oneri"]]
     out = {"arac": "kur_kontrol", "surum": 2, "zaman": time.strftime("%Y-%m-%d %H:%M:%S"), "kok": KOK,
            "isletim": s, "hazir": not eksik, "eksik_sart": eksik, "eksik_istege_bagli": istege,
            # 'hazir' covers the required items only; the GPU is optional, so its state is spelled out here as well
-           "yazma_cihazi": g["cihaz"], "uyarilar": uyarilar, "ogeler": ogeler, "gpu": g}
+           "yazma_cihazi": g["cihaz"], "uyarilar": uyarilar,
+           # which card, and whether to offer the ~1.5 GB GPU files at all (KURULUM-AJAN.md step 9 acts on 'oneri')
+           "ekran_karti": ek, "ogeler": ogeler, "gpu": g}
     if js:
         print(json.dumps(out, ensure_ascii=False, indent=1))
     else:
@@ -401,7 +524,11 @@ def main():
             if o["not"]:
                 satir += " - " + o["not"]
             print(satir)
-        if g["hazir"]:
+        print("[KART] Ekran kartı: %s%s. Öneri: %s. %s" % (ek["ad"] or "tanınamadı",
+                                                          (", %s GB" % gb_yaz(ek["bellek_gb"])) if ek["bellek_gb"] else "",
+                                                          ek["oneri"], ek["neden"]))
+        bosa = not g["hazir"] and bool(g["nvidia"] or ek["nvidia"])     # an NVIDIA card that will not be used
+        if not bosa:
             print("[GPU ] " + g["oneri"])
         else:
             cizgi = "!" * 78
@@ -409,7 +536,7 @@ def main():
             print("!!! " + g["oneri"])
             print(cizgi)
         sonuc = "SONUC: HAZIR" if not eksik else "SONUC: EKSIK: " + ", ".join(eksik)
-        print(sonuc + ("" if g["hazir"] else " (UYARI: ekran kartı kullanılmayacak, uzun kayıt yavaş yazıya dökülür)"))
+        print(sonuc + (" (UYARI: ekran kartı kullanılmayacak, uzun kayıt yavaş yazıya dökülür)" if bosa else ""))
     sys.exit(0 if not eksik else 1)
 
 
