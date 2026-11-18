@@ -288,7 +288,14 @@ def kumele(ws):
     return out
 
 
-def buyuk(t): return t.replace("i", "İ").replace("ı", "I").upper()
+_TR_HARF = True     # captions in capitals the Turkish way (i -> İ); False when yazi.json "dil" is not tr (it -> IT)
+
+
+def buyuk(t): return t.replace("i", "İ").replace("ı", "I").upper() if _TR_HARF else t.upper()
+
+
+def dil_ayarla(yz):
+    global _TR_HARF; _TR_HARF = (yz.get("dil") or "tr") == "tr"
 
 
 _YAZI_PX = None
@@ -389,7 +396,7 @@ def _wav_oku(yol):
 def tek_klip(plan, kl, kok, cikti_kl):
     yol = lambda p: p if os.path.isabs(p) else os.path.join(kok, p)
     kaynak = yol(plan["kaynak"]); k = kaynak_bilgi(kaynak)
-    yz = json.load(open(yol(plan["yazi"]), encoding="utf-8")); kel = yz["kelimeler"]
+    yz = json.load(open(yol(plan["yazi"]), encoding="utf-8")); kel = yz["kelimeler"]; dil_ayarla(yz)
     i0, i1 = kelime_araligi(kel, kl["bas"], kl["son"])
     # on_pay (18.11.2026): the silent event before a reaction may open the clip, up to ON_PAY_EN_COK before word 1
     on_pay = min(ON_PAY_EN_COK, max(ON_PAY, float(kl.get("on_pay") or ON_PAY)))
@@ -534,7 +541,7 @@ def onizle(plan_yolu, klasor, ad, sn=None):
                         "-map", "[v]", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
     if len(b) != W * H * 3: sys.exit(f"HATA: {t:.2f} sn'den kare okunamadı")
     img = Image.frombuffer("RGB", (W, H), b, "raw", "RGB", 0, 1).copy()
-    yz = json.load(open(yol(plan["yazi"]), encoding="utf-8"))
+    yz = json.load(open(yol(plan["yazi"]), encoding="utf-8")); dil_ayarla(yz)
     # the sample caption as the clip will show it: the clip's yazim applied (a key may start a word or two earlier)
     kel = yz["kelimeler"]; j = next((i for i, w in enumerate(kel) if w[1] >= t), len(kel))
     yakin = yazim_uygula(birlestir(kel[max(0, j - 3): j + 8]), kl.get("yazim", {}))

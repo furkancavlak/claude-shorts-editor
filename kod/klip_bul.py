@@ -35,6 +35,11 @@ every window of whole Whisper sentences 15-45 s long is scored, then the best wi
            start (ve, ama, cunku...): small minus. No face in the camera box in most sampled frames (empty
            chair): -5, flagged.
   sohbet   a chat peak 3-12 s after the window starts and before it ends + 12 s: +2.
+Language (yazi.json "dil", from ses_yazi.py --dil; missing = tr): the word lists and the Turkish rules (tepki/yemin/
+anlati/hitap/cagri lists, dangling start, Turkish question words and endings, filler, 2-word repeats) are for Turkish
+only. In any other language they are OFF, not guessed: what stays is ses, yapi, sohbet, the face check and the signs
+that need no language (! and ?, stretched letters, laughter like haha/lol, 8+ word sentences, words per second, the
+same short line twice). No intro/call is dropped then. adaylar.md says so at the top.
 A window must end where the next word starts >= 0.1 s later (else the gate fails "KELIME ICINDE KESIYOR").
 Number of candidates grows with the recording: max(9, 4 x adet, minutes / 3), at most 60.
 Scores are hints: the model reads the text and keeps only moments that stand alone.
@@ -84,26 +89,34 @@ def mmss(t): t = int(t); return f"{t // 3600}:{t % 3600 // 60:02d}:{t % 60:02d}"
 def kucuk(t): return t.replace("İ", "i").replace("I", "ı").lower()
 
 
-def sozcukler(t): return re.findall(r"[0-9a-zçğıöşü]+", kucuk(t))
+_SOZCUK = {True: re.compile(r"[0-9a-zçğıöşü]+"), False: re.compile(r"[^\W_]+")}
 
 
-def cumle_sinyal(metin):
-    """One Whisper sentence -> counts of the content signals (see the word lists above)."""
-    k = kucuk(metin).strip(); say = lambda ad: sum(1 for r in _R[ad] if r.search(k))
+def sozcukler(t, tr=True): return _SOZCUK[tr].findall(kucuk(t) if tr else t.lower())
+
+
+def turkce_mi(yz): return (yz.get("dil") or "tr") == "tr"      # an old yazi.json has no "dil": Turkish, as before
+
+
+def cumle_sinyal(metin, tr=True):
+    """One Whisper sentence -> counts of the content signals (see the word lists above). tr=False: only the signs
+    that need no language (! ?, stretched letters, laughter, long sentence); the Turkish lists count 0."""
+    k = (kucuk(metin) if tr else metin.lower()).strip(); say = lambda ad: sum(1 for r in _R[ad] if r.search(k)) if tr or ad == "kahkaha" else 0
     return {"tepki": min(2, say("tepki") + (1 if UZAT.search(k) else 0) + (1 if "!" in metin else 0)),
             "kahkaha": 1 if say("kahkaha") else 0, "yemin": 1 if say("yemin") else 0, "anlati": min(2, say("anlati")),
             "hitap": 1 if say("hitap") else 0, "cagri": 1 if say("cagri") else 0,
-            "soru": 1 if (SORU_SON.search(k) or SORU_BAS.search(k)) else 0, "sarkik": 1 if SARKIK.search(k) else 0,
+            "soru": 1 if ((SORU_SON.search(k) or SORU_BAS.search(k)) if tr else "?" in metin) else 0,
+            "sarkik": 1 if tr and SARKIK.search(k) else 0,
             "uzun": 1 if len(metin.split()) >= 8 else 0}
 
 
-def supheli_kelimeler(kel, a, b, en_cok=8):
+def supheli_kelimeler(kel, a, b, en_cok=8, tr=True):
     """Words Whisper was least sure of between a and b (probability < SUPHELI_P), least sure first. Filler, 1-2 letter
     words, laughter and stretched reactions are left out: what remains is where names and game words go wrong."""
     out = {}
     for k in kel:
         if k[1] < a - 0.01 or k[2] > b + 0.01 or len(k) < 4 or k[3] >= SUPHELI_P: continue
-        w = sozcukler(k[0])
+        w = sozcukler(k[0], tr)
         if not w or len(w[0]) < 3 or w[0] in DOLGU or UZAT.search(w[0]) or any(r.search(w[0]) for r in _R["kahkaha"]): continue
         if any(r.search(w[0]) for r in _R["tepki"]): continue
         out[k[0]] = min(out.get(k[0], 1.0), k[3])
@@ -146,9 +159,9 @@ def aday_sayisi(sure_sn, adet): return int(min(60, max(9, 4 * adet, round(sure_s
 def adaylari_bul(yz, hey, adim, adet, sohbet_t=(), kamera=None, gunluk=None):
     """Score every 15-45 s window of whole sentences, keep the best that do not overlap. Returns (candidates, dropped)."""
     cum = [c for c in yz["cumleler"] if c[2] > c[1] or c[0].strip()]
-    kel = yz["kelimeler"]; n = len(cum)
+    kel = yz["kelimeler"]; n = len(cum); tr = turkce_mi(yz)
     A = np.array([c[1] for c in cum]); B = np.array([c[2] for c in cum])
-    sig = [cumle_sinyal(c[0]) for c in cum]
+    sig = [cumle_sinyal(c[0], tr) for c in cum]
     tepe = np.zeros(n)
     for i, c in enumerate(cum):
         a, b = int(c[1] / adim), max(int(c[1] / adim) + 1, int(c[2] / adim))
@@ -169,8 +182,9 @@ def adaylari_bul(yz, hey, adim, adet, sohbet_t=(), kamera=None, gunluk=None):
     bos = [1 if len(cum[i][0].split()) <= 3 and not (sig[i]["tepki"] or sig[i]["kahkaha"] or sig[i]["soru"]) else 0 for i in range(n)]
     P["bos"] = onek(bos)
     tepe_puan = ses_p + np.array([s["tepki"] + 1.5 * s["kahkaha"] for s in sig])
-    soz = [sozcukler(c[0]) for c in cum]
-    ikili = [set(bg for bg in zip(w, w[1:]) if not all(x in DOLGU for x in bg)) for w in soz]
+    soz = [sozcukler(c[0], tr) for c in cum]
+    # 2-word repeats need the Turkish filler list (else "of the", "you know" would count): off in another language
+    ikili = [set(bg for bg in zip(w, w[1:]) if not all(x in DOLGU for x in bg)) if tr else set() for w in soz]
     P["kelime"] = onek([len(w) for w in soz])
     sohbet_t = sorted(sohbet_t)
 
@@ -246,7 +260,7 @@ def adaylari_bul(yz, hey, adim, adet, sohbet_t=(), kamera=None, gunluk=None):
     adaylar = []
     for no, r in enumerate(secilen, 1):
         i, j, pk = r["i"], r["j"], r["tepe_i"]
-        supheli = supheli_kelimeler(kel, A[i], B[j])
+        supheli = supheli_kelimeler(kel, A[i], B[j], tr=tr)
         adaylar.append({"no": no, "bas": round(float(A[i]), 2), "son": round(float(B[j]), 2), "sure": round(float(B[j] - A[i]), 1),
                         "puan": r["puan"], "tepe_cumle": cum[pk][0], "tepe_t": round(float(A[pk]), 2), "tepe_konum": r["tepe_konum"],
                         "ses_db": r["ses_db"], "sinyal": r["sinyal"], "ses_p": r["ses_p"], "icerik_p": r["icerik_p"],
@@ -262,12 +276,12 @@ def adaylari_bul(yz, hey, adim, adet, sohbet_t=(), kamera=None, gunluk=None):
 
 def harita(yz, adaylar, blok=600):
     """A 10-minute map of a long recording: where the talk, the reactions and the best candidates are."""
-    sure = yz["sure"]; satir = []
+    sure = yz["sure"]; satir = []; tr = turkce_mi(yz)
     for b0 in np.arange(0, sure - 30, blok):
         b1 = min(sure, b0 + blok)
         cs = [c for c in yz["cumleler"] if b0 <= c[1] < b1]
         nk = sum(len(c[0].split()) for c in cs)
-        tep = sum(cumle_sinyal(c[0])["tepki"] + cumle_sinyal(c[0])["kahkaha"] for c in cs)
+        tep = sum(cumle_sinyal(c[0], tr)["tepki"] + cumle_sinyal(c[0], tr)["kahkaha"] for c in cs)
         ad = [x for x in adaylar if b0 <= x["bas"] < b1]
         en = max(ad, key=lambda x: x["puan"]) if ad else None
         satir.append(f"| {mmss(b0)}–{mmss(b1)} | {nk / max(1, (b1 - b0) / 60):.0f} | {tep} | {len(ad)} | "
@@ -365,6 +379,8 @@ def main(klasor, adet=3, anlar=None, sohbet_dosya=None, kutu=None, kamera_arg=No
         x["cumleler"] = metin(x["bas"], x["son"])
 
     kamera = kamera_kutusu(klasor, yz, kamera_arg, gunluk)
+    tr = turkce_mi(yz)
+    if not tr: gunluk.append(f"dil {yz.get('dil')}: Türkçe kelime listeleri kapalı, puan ses ve yapıdan")
     adaylar, dusen = adaylari_bul(yz, hey, adim, adet, [x["t"] for x in isaret["sohbet_tepesi"]], kamera, gunluk)
     yuzsuz = [a["no"] for a in adaylar if a.get("yuz") == 0]
     gunluk.append(f"{len(adaylar)} aday (kayıt {yz['sure'] / 60:.0f} dk)" + (f"; {len(dusen)} pencere giriş/anons diye elendi" if dusen else "")
@@ -388,6 +404,11 @@ def main(klasor, adet=3, anlar=None, sohbet_dosya=None, kutu=None, kamera_arg=No
     with open(os.path.join(klasor, "adaylar.md"), "w", encoding="utf-8") as f:
         f.write(f"# Klip adayları\n\nKayıt: {yz['kaynak']}  ·  {yz['sure'] / 60:.1f} dk  ·  {len(kel)} kelime  ·  model {yz['model']}\n"
                 "Bütün yazı: yazi.txt  ·  günlük: " + " · ".join(gunluk) + "\n\n")
+        if not tr:
+            f.write(f"**Kaydın dili: {yz.get('dil')}.** İçerik sinyali yalnız Türkçe için ayarlı; bu dilde adaylar ses ve yapı "
+                    "puanına dayanıyor (söylenenlerden yalnız dilden bağımsız işaretler sayıldı: ! ve ?, uzatılmış harf, kahkaha, "
+                    "uzun cümle, konuşma hızı). Kanal girişi ve çağrı (abone ol) bu dilde elenmez. Seçimi yazıyı (yazi.txt) "
+                    "okuyarak yap.\n\n")
         if isaret["anlar"]:
             f.write(f"## KULLANICININ VERDİĞİ ANLAR ({len(isaret['anlar'])}) — an SEÇME, bunları kur\n\n")
             for x in isaret["anlar"]:
@@ -398,7 +419,8 @@ def main(klasor, adet=3, anlar=None, sohbet_dosya=None, kutu=None, kamera_arg=No
                 for s in x["cumleler"]: f.write(f"  - [{s[0]:.2f}–{s[1]:.2f}] {s[2]}\n")
                 f.write("\n")
         f.write(f"## ADAYLAR ({len(adaylar)}, puan sırasıyla; istenen {adet} klip)\n\n"
-                "Puan = ses (olağan düzeyin kaç dB üstü) + söylenenler (tepki, kahkaha, soru-cevap, anlatı, sohbete hitap, tekrar) "
+                "Puan = ses (olağan düzeyin kaç dB üstü) + söylenenler ("
+                + ("tepki, kahkaha, soru-cevap, anlatı, sohbete hitap, tekrar" if tr else "bu dilde yalnız dilden bağımsız işaretler") + ") "
                 "+ yapı (tepe pencerenin ortasında: olayın nedeni önce) − ceza (çağrı/anons, uzun sessizlik, kamerada yüz yok). "
                 "Puan yalnız ipucu: metni oku, tek başına anlaşılan anı seç. Sıra dışı bir an (sessiz geçen olay, sakin anlatı) "
                 "listede olmayabilir; yazi.txt'ye de bak.\n\n")

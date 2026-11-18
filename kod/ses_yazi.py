@@ -5,7 +5,10 @@
     python ses_yazi.py --cihaz        which device transcription will use, where the GPU libraries were found (no model load)
       -> <out_dir>/ses.wav    48 kHz mono, leading silence cut so speech starts at 0.03 s,
                                trailing silence cut to 0.35 s, peak-normalised to -3 dBFS
-      -> <out_dir>/ses.json   {"sure", "model", "kelimeler": [[word, start, end, prob], ...]}
+      -> <out_dir>/ses.json   {"sure", "model", "dil", "kelimeler": [[word, start, end, prob], ...]}
+    --dil <code>   language of the speech, both forms: tr (default, as before), en, de ... (Whisper's codes), or auto =
+                   Whisper recognises it (a long recording: once, from its first speech; the whole recording then uses
+                   that language). The output records it: "dil", "dil_secim" (verilen | tanindi), "dil_olasilik" (auto).
 
 Model: WHISPER_MODEL env (default large-v3-turbo, then medium) from the local Hugging Face cache only
 (local_files_only=True: a missing model is an error, never a download).
@@ -112,6 +115,25 @@ def sure_tahmini(sure_sn, cihaz):
 def dk(sn): return f"{sn / 60:.0f} dk" if sn >= 90 else f"{sn:.0f} sn"
 
 
+def dil_kodu(d):
+    """--dil value -> 'auto' or a language code Whisper knows ('tr', 'en', 'de' ...). ValueError for anything else.
+    panel/hazirlik.js asks this same function before a job is opened."""
+    d = str(d or "").strip().lower()
+    if d == "auto": return d
+    try:
+        from faster_whisper.tokenizer import _LANGUAGE_CODES as kodlar
+    except Exception:                                   # another faster-whisper: only the shape can be checked
+        kodlar = None
+    if (d in kodlar) if kodlar else re.fullmatch(r"[a-z]{2,3}", d): return d
+    raise ValueError(f"bilinmeyen dil kodu '{d}': Whisper'in kodunu ver (tr, en, de, es, fr, ru, ar ...) ya da auto")
+
+
+def dil_ozet(dil, info):
+    """The fields the output records about the language (dil = what was asked, info = Whisper's answer)."""
+    if dil != "auto": return {"dil": dil, "dil_secim": "verilen"}
+    return {"dil": info.language, "dil_secim": "tanindi", "dil_olasilik": round(float(info.language_probability), 2)}
+
+
 def gpu_uyarisi(c, sure_sn=None):
     """The loud line when transcription runs on the processor."""
     neden = (f"ekran kartı kütüphaneleri bulunamadı ({len(c['eksik'])}/{len(CUDA_DLL)} dosya eksik: "
@@ -144,6 +166,7 @@ def model_ac(sure_sn=None):
             try:
                 m = WhisperModel(ad, device=cihaz, compute_type=tip, local_files_only=True)
                 if cihaz == "cuda":     # a missing library only shows up on first use: try one second of silence
+                    # (a device test only: its language has nothing to do with --dil)
                     list(m.transcribe(np.zeros(16000, np.float32), language="tr", vad_filter=False)[0])
                 if cihaz == "cpu": print(gpu_uyarisi(c, sure_sn), flush=True)
                 else: print("CIHAZ ekran karti (cuda); kutuphaneler: " + "; ".join(f"{k} ({c['nereden'][k]})" for k in c["klasorler"]), flush=True)
@@ -153,7 +176,7 @@ def model_ac(sure_sn=None):
     sys.exit("HATA: yerel Whisper modeli yok (indirme yapilmaz)")
 
 
-def main(girdi, klasor):
+def main(girdi, klasor, dil="tr"):
     os.makedirs(klasor, exist_ok=True)
     x = oku(girdi, SR)
     x, kesilen = kirp(x, SR)
@@ -166,15 +189,17 @@ def main(girdi, klasor):
         w.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
     model, ad = model_ac(len(x) / SR); t0 = time.time()
     x16 = oku(wav, 16000)
-    segs, info = model.transcribe(x16, language="tr", word_timestamps=True, vad_filter=False,
+    segs, info = model.transcribe(x16, language=None if dil == "auto" else dil, word_timestamps=True, vad_filter=False,
                                   condition_on_previous_text=False, beam_size=5)
     kel = []
     for s in segs:
         for wd in s.words or []:
             kel.append([wd.word.strip(), round(wd.start, 3), round(wd.end, 3), round(wd.probability, 2)])
-    json.dump({"sure": round(len(x) / SR, 3), "model": ad, "bastan_kesilen": round(kesilen, 3), "kelimeler": kel},
+    d = dil_ozet(dil, info)
+    json.dump({"sure": round(len(x) / SR, 3), "model": ad, "bastan_kesilen": round(kesilen, 3), **d, "kelimeler": kel},
               open(os.path.join(klasor, "ses.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
-    print(f"TAMAM {wav}  {len(x) / SR:.2f} sn, {len(kel)} kelime, {ad}, {time.time() - t0:.0f} sn")
+    print(f"TAMAM {wav}  {len(x) / SR:.2f} sn, {len(kel)} kelime, {ad}, dil {d['dil']}"
+          + (f" (taninan, olasilik {d['dil_olasilik']})" if d["dil_secim"] == "tanindi" else "") + f", {time.time() - t0:.0f} sn")
     print(" ".join(k[0] for k in kel))
 
 
@@ -211,13 +236,15 @@ def noktalama_orani(cumleler):
     return round(sum(1 for c in cumleler if re.search(r"[.?!…]\s*$", c[0])) / max(1, len(cumleler)), 2)
 
 
-def uzun(girdi, klasor, iz=0, parca_sn=PARCA_SN):
+def uzun(girdi, klasor, iz=0, parca_sn=PARCA_SN, dil="tr"):
     """A long recording (an hour or more) with speech in it -> word timings in the RECORDING's own seconds.
     Nothing is trimmed or normalised: the clips are cut from the recording itself, so times must match it.
-      <klasor>/yazi.json    {"kaynak", "sure", "model", "parca", "parca_noktalama", "kelimeler": [[w, a, b, p]],
+      <klasor>/yazi.json    {"kaynak", "sure", "model", "dil", "parca", "parca_noktalama", "kelimeler": [[w, a, b, p]],
                              "cumleler": [[text, a, b]]}
       <klasor>/enerji.json  {"adim": 0.25, "db": [...]}   loudness (RMS dBFS) of every 0.25 s of the recording
-    Progress lines on stdout: 'ILERLEME <done>/<total> parca %<p> ...' (the panel reads them)."""
+    Progress lines on stdout: 'ILERLEME <done>/<total> parca %<p> ...' (the panel reads them).
+    dil "auto": the first piece in which words are heard decides (Whisper's detection on up to 4 x 30 s of its
+    speech); every later piece is written in that language, so the pieces never switch language."""
     os.makedirs(klasor, exist_ok=True)
     sr = 16000; t_bas = time.time()
     print(f"ILERLEME ses okunuyor ({os.path.basename(girdi)}, ses izi {iz})", flush=True)
@@ -247,28 +274,34 @@ def uzun(girdi, klasor, iz=0, parca_sn=PARCA_SN):
         kes.append(round((a + int(np.argmin(pen))) * ENERJI_ADIM + ENERJI_ADIM, 2))
     kes.append(sure)
     model, ad = model_ac(sure)
-    print(f"ILERLEME model hazir ({ad}); {sure / 60:.1f} dk ses, {len(kes) - 1} parca; tahmini ~{dk(sure_tahmini(sure, ad.split('/')[-1]))}",
-          flush=True)
+    print(f"ILERLEME model hazir ({ad}); dil {'auto (ilk konusmadan taninacak)' if dil == 'auto' else dil}; {sure / 60:.1f} dk ses, "
+          f"{len(kes) - 1} parca; tahmini ~{dk(sure_tahmini(sure, ad.split('/')[-1]))}", flush=True)
+    d = None if dil == "auto" else dil_ozet(dil, None)
     kel, cum, oran = [], [], []
     for i, (a, b) in enumerate(zip(kes, kes[1:])):
         parca = x[int(a * sr): int(b * sr)].astype(np.float32) / 32768
-        segs, _ = model.transcribe(parca, language="tr", word_timestamps=True, vad_filter=True,
-                                   condition_on_previous_text=False, beam_size=5)
+        tani = {"language_detection_segments": 4} if d is None else {}
+        segs, info = model.transcribe(parca, language=None if d is None else d["dil"], word_timestamps=True, vad_filter=True,
+                                      condition_on_previous_text=False, beam_size=5, **tani)
         bu = []
         for s in segs:
             ws = [[wd.word.strip(), round(a + wd.start, 3), round(a + wd.end, 3), round(wd.probability, 2)] for wd in (s.words or []) if wd.word.strip()]
             if not ws: continue
             kel.extend(ws); bu.extend(cumlelere_bol(s.text.strip(), ws))
+        if d is None and bu:              # auto: words heard, this language from now on
+            d = dil_ozet("auto", info)
+            print(f"ILERLEME dil tanindi: {d['dil']} (olasilik {d['dil_olasilik']}, {i + 1}. parcadan)", flush=True)
         cum.extend(bu); oran.append(noktalama_orani(bu))
         gecen = time.time() - t_bas; o = b / sure
         print(f"ILERLEME {i + 1}/{len(kes) - 1} parca %{o * 100:.0f}  ({b / 60:.1f}/{sure / 60:.1f} dk ses, "
               f"{len(kel)} kelime, gecen {gecen:.0f} sn, kalan ~{gecen / o - gecen:.0f} sn)", flush=True)
-    json.dump({"kaynak": os.path.abspath(girdi), "ses_izi": iz, "sure": round(sure, 3), "model": ad, "parca": kes,
+    d = d or {"dil": "auto", "dil_secim": "taninamadi"}              # auto and no word anywhere
+    json.dump({"kaynak": os.path.abspath(girdi), "ses_izi": iz, "sure": round(sure, 3), "model": ad, **d, "parca": kes,
                "parca_noktalama": oran,
                "sure_sn": round(time.time() - t_bas, 1), "kelimeler": kel, "cumleler": cum},
               open(os.path.join(klasor, "yazi.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
     print(f"TAMAM {os.path.join(klasor, 'yazi.json')}  {sure / 60:.1f} dk, {len(kel)} kelime, {len(cum)} cumle, {ad}, "
-          f"{time.time() - t_bas:.0f} sn")
+          f"dil {d['dil']}, {time.time() - t_bas:.0f} sn")
 
 
 def cihaz_raporu():
@@ -288,12 +321,19 @@ def cihaz_raporu():
 
 if __name__ == "__main__":
     a = sys.argv[1:]
+    dil = "tr"
+    if "--dil" in a:                      # anywhere on the line: --dil en
+        i = a.index("--dil")
+        if i + 1 >= len(a): sys.exit("HATA: --dil icin dil kodu yok (tr, en, de ... ya da auto)")
+        try: dil = dil_kodu(a[i + 1])
+        except ValueError as e: sys.exit("HATA: " + str(e))
+        del a[i:i + 2]
     if a and a[0] == "--cihaz":
         cihaz_raporu()
     elif a and a[0] == "--uzun":
-        # python ses_yazi.py --uzun <recording> <out_dir> [audio track index, default 0]
-        uzun(a[1], a[2], int(a[3]) if len(a) > 3 else 0)
+        # python ses_yazi.py --uzun <recording> <out_dir> [audio track index, default 0] [--dil tr]
+        uzun(a[1], a[2], int(a[3]) if len(a) > 3 else 0, dil=dil)
     elif len(a) >= 2:
-        main(a[0], a[1])
+        main(a[0], a[1], dil)
     else:
         sys.exit(__doc__)

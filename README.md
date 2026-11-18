@@ -14,7 +14,7 @@ It needs your own Claude subscription, takes about 25–30 minutes per video, an
   <img src="docs/gorsel/nasil-calisir.png" width="830" alt="How it works in three steps: 1. say what you want in the chat, 2. Claude edits in five stages (transcribe, pick the moments, edit as code, technical check, ready), 3. you get the video and one question whose answer goes into your style notebook.">
 </p>
 
-A read-only watch page shows the job in progress, the finished videos and the style notebook: what you said you liked, kept in your own words as hints for the next video. The page, the agent's messages and the docs are in Turkish.
+A read-only watch page shows the job in progress, the finished videos and the style notebook: what you said you liked, kept in your own words as hints for the next video. The page, the agent's messages and the docs are in Turkish. Speech in another language can be transcribed too (`--dil en`, or `--dil auto`); that was tried on one 2-minute English recording only, and the moment finder's word signals are tuned for Turkish.
 
 <p align="center">
   <img src="docs/gorsel/izleme-sayfasi.png" width="830" alt="The watch page: a clip job at the edit stage (3 of 5), the latest finished Short with the thing the agent tried on purpose, and a style notebook with five entries.">
@@ -128,6 +128,7 @@ Beğendiğin videoları `referans/` klasörüne koyarsan ajan kurgudan önce onl
 - **Müzik ve efekt sesleri kodla üretiliyor ve zayıf.** İndirilmiş müzik ya da ses örneği yok.
 - **Deneme sesi yer tutucudur.** Windows sesiyle yapılan Short'un ritmi yanıltır. Kendi sesini kaydedince dosyanın yolunu sohbete yazman yeter; Short o sesle yeniden kurulur.
 - Aday an bulucu kabadır ve yalnız bir yayıncının CS2 kayıtlarıyla ayarlandı: 1 saatlik denemede iyi anların bir kısmı ilk on adayda yoktu; ajan konuşmanın yazısını da okuyarak seçer.
+- **Başka dildeki kayıt:** konuşma `--dil en` (ya da `--dil auto`: dili Whisper tanır) ile yazıya dökülür. Türkçe dışında yalnız 2 dakikalık tek bir İngilizce kayıtla denendi (yazıya dökme, aday anlar ve tek bir altyazı önizleme karesi; bütün bir klip kurulmadı). An bulucunun söylenenlere bakan kısmı yalnız Türkçe için ayarlı; başka dilde kapanır, adaylar ses ve yapıya dayanır. Türkçe dışı harflerle (é, ä, ß…) altyazı denenmedi. Deneme sesi yalnız Türkçe okur: başka dilde Short için kendi sesini ver.
 - Whisper adları ve bazı kelimeleri yanlış duyar, altyazıya da öyle yazılır; doğru yazımı sohbette söylemen yeter.
 - Kamera bulucu çizgi film ya da 3D karakter yüzünü çoğu zaman bulamaz; o zaman ajan kareye bakıp karar verir, yanlışsa sohbette söyle.
 - Son kontrol yalnız teknik hataları yakalar (kare tekrarı, ses kayması, son kelimede bitiş, ekran alanı); zevke karışmaz.

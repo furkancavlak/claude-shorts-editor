@@ -4,11 +4,15 @@
 // panel/AJAN-TALIMATI.md and the watch page (panel/server.js, read only) all read it the same way.
 //
 //   node panel/is_ac.js klip <kayıt.mp4> [--adet 3] [--kurgu sade|editli] [--altyazisiz] [--an 12:30-13:05]... [--anlar "12:30;45:10-45:40"]
-//                            [--sohbet <sohbet.txt|.json>] [--sohbet-kutu x0,y0,x1,y1] [--ses-izi 0]
-//   node panel/is_ac.js short <tek_bilgi|liste|karsilastirma> --video <dosya|klasör>... (--metin "..." | --metin-dosya <m.txt>) [--ses <kayıt.m4a>]
-//   node panel/is_ac.js devam <iş klasörü ya da kimliği>      continue: half-prepared, stopped, broken or gate-failed job
+//                            [--sohbet <sohbet.txt|.json>] [--sohbet-kutu x0,y0,x1,y1] [--ses-izi 0] [--dil tr]
+//   node panel/is_ac.js short <tek_bilgi|liste|karsilastirma> --video <dosya|klasör>... (--metin "..." | --metin-dosya <m.txt>) [--ses <kayıt.m4a>] [--dil tr]
+//   node panel/is_ac.js devam <iş klasörü ya da kimliği> [--dil en]   continue: half-prepared, stopped, broken or gate-failed job
+//                            [--dil tr|en|de|...|auto]  speech language (default tr; auto = Whisper recognises it; Short: only with --ses)
 //   node panel/is_ac.js --help                                this text
 //
+// --dil is kept in is.json ("dil") so devam transcribes with the same language (devam --dil changes it, only while the
+// transcription is not done yet); yazi.json / ses.json record the language used (with auto, the one recognised).
+// kod/klip_bul.py reads it there: its word lists are Turkish only. The placeholder voice speaks Turkish only.
 // Klip: captions are on unless --altyazisiz (--altyazi is still accepted and changes nothing). The recording is used
 // IN PLACE from its path (never copied). Short: the videos are copied into ham/ (a file over 500 MB is used in place
 // instead), the voice into ses/. Nothing the user gave is moved, changed or deleted. Every job gets an empty bak/ for
@@ -45,6 +49,14 @@ function kurulumKontrol() {
   if (eksik.length) dur(3, 'KURULUM EKSIK: ' + eksik.join(', ') + '\nİş açılmadı, hiçbir şey yazılmadı. Önce kurulum: KURULUM-AJAN.md ' +
     '(kullanıcıya: "Önce kurulumu tamamlamam gerekiyor"; ne kurulu, ne eksik: py -3 kur_kontrol.py).');
 }
+
+// --dil: refused before anything is written when Whisper does not know the code
+function dilAl(v) {
+  const d = H.dilKontrol(v);
+  if (d.hata) dur(2, 'HATA: --dil ' + d.hata + '.');
+  return d.kod;
+}
+const YER_TUTUCU_DIL = 'HATA: Deneme sesi yalnız Türkçe okur (Windows\'un Türkçe sesi); başka dilde Short için kendi sesini --ses ile ver.';
 
 // ------------------------------------------------------------------ arguments
 const BAYRAK = ['altyazi', 'altyazisiz', 'help'];           // flags without a value
@@ -125,12 +137,14 @@ async function olustur(tur, a) {
     }
     if (!ses && !metin) dur(2, 'HATA: Short için sesini (--ses) ya da söyleyeceklerini (--metin / --metin-dosya) ver.');
     if (!ses && process.platform !== 'win32') dur(2, 'HATA: Ses dosyası yok ve yer tutucu ses yalnız Windows\'ta var: --ses ile kaydı ver.');
+    if (!ses && a.dil !== undefined && String(a.dil).trim().toLowerCase() !== 'tr') dur(2, YER_TUTUCU_DIL);
     const kelime = metin ? metin.split(/\s+/).filter(Boolean).length : 0;
     if (!ses && kelime < H.SHORT_EN_AZ_KELIME)
       uyarilar.push(`UYARI: metin ${kelime} kelime; Short en az ${H.SHORT_EN_AZ_SN} sn (kabaca ${H.SHORT_EN_AZ_KELIME} kelime). Kurmadan önce kullanıcıya "bir-iki cümle ekle" de ` +
         '(panel/AJAN-TALIMATI.md, Çıta, "Malzeme inceyse"). İş yine de açılıyor.');
   }
   kurulumKontrol();
+  if (a.dil !== undefined) yeni.dil = dilAl(a.dil);
   // every video must open before anything is written: a refused request leaves nothing behind
   const bilgiler = new Map();
   for (const v of klip ? [kayit] : videolar) {
@@ -217,12 +231,21 @@ function bitir(klasor, r, asama) {
 // 2. after preparation, stopped / broken / gate failed: the job goes back to Claude from its first unfinished stage,
 //    the agent redoes that stage;
 // 3. Claude already working, waiting for Claude, or done: nothing changes; the status is printed.
-async function devam(arg) {
+async function devam(arg, dil) {
   if (!arg) kullan('iş klasörünü ya da kimliğini ver');
   const klasor = fs.existsSync(temizYol(arg)) ? temizYol(arg) : path.join(ISLER, arg);
   const is = J.oku(klasor);
   if (!is) dur(2, 'HATA: Bu işi bulamadım: ' + klasor);
   if (H.hazirlikSuruyor(is)) dur(1, 'HATA: Bu işin hazırlığı şu an çalışıyor (PID ' + ((is.hazirlayan || {}).pid || '?') + '); bitmesini bekle: node panel/durum.js "' + klasor + '" ozet');
+  if (dil !== undefined) {               // --dil: another language, only while the speech is not written yet
+    const d = dilAl(dil), eski = is.dil || 'tr';
+    if (d !== eski) {
+      if (fs.existsSync(is.tarz === 'klip' ? path.join(klasor, 'yazi', 'yazi.json') : path.join(klasor, 'ses', 'ses.json')))
+        dur(2, `HATA: Bu işin konuşması zaten "${eski}" diliyle yazıya döküldü. Başka dille dökmek için aynı kayıtla yeni iş aç (bu klasöre dokunulmadı).`);
+      if (is.tarz !== 'klip' && d !== 'tr' && (!is.ses || is.ses.yer_tutucu)) dur(2, YER_TUTUCU_DIL);
+      is.dil = d; J.olay(is, `Konuşmanın dili ${eski} yerine ${d} olarak değiştirildi.`); J.yaz(klasor, is);
+    }
+  }
   try { fs.mkdirSync(path.join(klasor, 'bak'), { recursive: true }); } catch (_) {}
   const hazirlikBitti = is.asamalar.ses.durum === 'tamam' || (is.asamalar.kanit && is.asamalar.kanit.durum !== 'bekliyor');
   if (!hazirlikBitti) {
@@ -273,6 +296,6 @@ if (a.help) dur(0, kullanim());
 (async () => {
   if (komut === 'klip') return olustur('klip', a);
   if (komut === 'short') return olustur('short', a);
-  if (komut === 'devam') return devam(a._[0]);
+  if (komut === 'devam') return devam(a._[0], a.dil);
   kullan('bilinmeyen komut: ' + komut);
 })().catch(e => dur(1, 'HATA: ' + (e && e.stack || e)));

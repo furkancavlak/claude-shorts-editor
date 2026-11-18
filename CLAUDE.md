@@ -38,7 +38,7 @@ Ne kurulu, ne eksik: `py -3 kur_kontrol.py --json` (hiçbir şey indirmez). Her 
 
 ## Kullanıcı şunu derse
 - **"kur"**, "bu depoyu kur": `KURULUM-AJAN.md`'yi baştan izle. Yarıda kaldıysa yine baştan başla; her adım önce "var mı" diye bakar.
-- **"şu videodan 3 klip çıkar: <yol>"**: `panel/AJAN-TALIMATI.md` "İşi açmak": eksikse kaç klip ve Sade mi Editli mi sor, `node panel/is_ac.js klip "<yol>" ...`, sonra A bölümü.
+- **"şu videodan 3 klip çıkar: <yol>"**: `panel/AJAN-TALIMATI.md` "İşi açmak": eksikse kaç klip ve Sade mi Editli mi sor, `node panel/is_ac.js klip "<yol>" ...` (konuşma Türkçe değilse `--dil`), sonra A bölümü.
 - **"şu metinle bir Liste Short'u yap, videolar şu klasörde"**: aynı yerden: tür, videolar, metin ya da ses; `node panel/is_ac.js short <tür> ...`, sonra B bölümü.
 - **"devam et"**, "sıradaki işi yap": `panel/AJAN-TALIMATI.md`, "Devam et" maddesi: sırada bekleyen en eski işi kaldığı aşamadan sürdür.
 - **"işe devam et"** (izleme sayfası bunu "Yarıda kaldı", "Bir şey bozuldu" ya da "Claude ses vermiyor" olan işte söyletir) ve **"düzelt ve yeniden dene"** ("Son kontrolden geçmedi" olan işte): işi bul, `node panel/durum.js <iş klasörü> ozet` ile ne olduğunu oku, `node panel/is_ac.js devam "<iş klasörü>"` çalıştır (yarım hazırlığı tamamlar ya da işi ilk bitmemiş aşamadan sana geri verir), o aşamayı nedeni gidererek yeniden yap. Ayrıntı: `panel/AJAN-TALIMATI.md`, "İşe devam et" maddesi.

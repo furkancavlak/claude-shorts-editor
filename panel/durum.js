@@ -135,8 +135,8 @@ switch (komut) {
     // head first, then the fields that are only written when set (with their empty value), the rest, the history,
     // and last what the page shows ("panelde")
     const bos = is.tarz === 'klip'
-      ? { kurgu: 'sade', adet: null, altyazi: false, ses_izi: 0, anlar: [], sohbet: null, sohbet_kutu: null, kamera: null, kamera_oneri: null }
-      : { metin: null, yazi_duzeltme: null, ses: null };
+      ? { kurgu: 'sade', adet: null, altyazi: false, ses_izi: 0, dil: 'tr', anlar: [], sohbet: null, sohbet_kutu: null, kamera: null, kamera_oneri: null }
+      : { metin: null, yazi_duzeltme: null, ses: null, dil: 'tr' };
     if (!SADE) bos.fikir = null;
     const out = { id: is.id, tarz: is.tarz, durum: is.durum, aciklama: is.aciklama, ...bos };
     for (const [k, v] of Object.entries(is)) if (k !== 'gecmis') out[k] = v;

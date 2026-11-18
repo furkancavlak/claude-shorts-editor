@@ -5,6 +5,7 @@
 //          order: transcription, camera suggestion, then the moments (klip_bul.py gets the camera box)
 //   Short: ses/ (ses.wav, ses.json, ses-hizali.json = the same words snapped to the sound by alet/kelime.py), metin.txt
 // While it runs, is.json carries "hazirlayan": {pid, baslangic}; it is removed when the preparation ends either way.
+// is.dil (only when the job was opened with --dil) goes to kod/ses_yazi.py as --dil; without it the speech is Turkish.
 // Nothing is downloaded, nothing the user gave is changed; no model other than the local Whisper is started.
 'use strict';
 const fs = require('fs');
@@ -144,6 +145,24 @@ function yaziCihazi() {
     return JSON.parse(o.trim().split(/\r?\n/).pop());
   } catch (_) { return { gpu: null }; }
 }
+// --dil: asked from kod/ses_yazi.py (dil_kodu, the same check the transcription makes) before anything is written.
+// -> { kod: 'en' } | { hata: '...' }. When Python itself cannot answer, only the shape is checked.
+function dilKontrol(dil) {
+  const kod = ['import sys', 'sys.path.insert(0, sys.argv[1])', 'import ses_yazi as s',
+    'try: print("DIL " + s.dil_kodu(sys.argv[2]))', 'except ValueError as e: print("HATA " + str(e))'].join('\n');
+  try {
+    const s = execFileSync(PY[0], [...PY.slice(1), '-c', kod, KOD, String(dil)], { windowsHide: true, encoding: 'utf8', env: ENV, timeout: 60000 })
+      .trim().split(/\r?\n/).pop();
+    if (s.startsWith('DIL ')) return { kod: s.slice(4) };
+    if (s.startsWith('HATA ')) return { hata: s.slice(5) };
+  } catch (_) {}
+  const d = String(dil).trim().toLowerCase();
+  return /^(auto|[a-z]{2,3})$/.test(d) ? { kod: d } : { hata: `bilinmeyen dil kodu '${dil}': tr, en, de ... ya da auto` };
+}
+// the transcription's flags: none when the job has no language (old jobs, or none given) = exactly the command as before
+const dilArg = is => is.dil ? ['--dil', is.dil] : [];
+// "dil en" for the job's history; nothing for Turkish (the default, as before)
+const dilYazi = y => !y || !y.dil || y.dil === 'tr' ? '' : ` · dil ${y.dil}` + (y.dil_secim === 'tanindi' ? ` (Whisper tanıdı, olasılık ${y.dil_olasilik})` : '');
 function yaziTahmini(saniye, cihaz) {
   const S = cihaz.saat || { cpu: 649, cuda: 108 }, saat = (saniye || 0) / 3600;
   const dk = sn => sn < 90 ? `~${Math.max(10, Math.round(sn / 10) * 10)} sn` : `~${Math.round(sn / 60)} dk`;
@@ -220,7 +239,7 @@ async function shortHazirla(klasor, degistir) {
   if (!fs.existsSync(sj)) {
     yaz('2/3 Ses yazıya dökülüyor (bu bilgisayarda, yerel Whisper).');
     degistir(x => { x.aciklama = 'Ses yazıya dökülüyor (bu bilgisayarda).'; });
-    const r = await calistir(PY[0], [...PY.slice(1), path.join(KOD, 'ses_yazi.py'), sesDosya, path.join(klasor, 'ses')], klasor, 15 * 60 * 1000);
+    const r = await calistir(PY[0], [...PY.slice(1), path.join(KOD, 'ses_yazi.py'), sesDosya, path.join(klasor, 'ses'), ...dilArg(is)], klasor, 15 * 60 * 1000);
     if (r.kod !== 0 || !fs.existsSync(sj)) return yazamadi(klasor, degistir, r);
   } else yaz('2/3 Ses zaten yazıya dökülmüş (ses/ses.json var), atlandı.');
   const s = JSON.parse(fs.readFileSync(sj, 'utf8')), n = (s.kelimeler || []).length;
@@ -237,7 +256,7 @@ async function shortHazirla(klasor, degistir) {
   degistir(x => {
     if (n) J.asamaKoy(x, 'ses', 'tamam', `${n} kelime, ${virgul(s.sure)} sn`);
     else J.asamaKoy(x, 'ses', 'claude', 'Seste kelime duyulmadı');
-    J.olay(x, n ? `Ses yazıya döküldü: ${n} kelime.` : 'Ses dosyasında kelime duyulmadı.');
+    J.olay(x, n ? `Ses yazıya döküldü: ${n} kelime${dilYazi(s)}.` : 'Ses dosyasında kelime duyulmadı.');
     J.asamaKoy(x, 'kanit', 'claude', ''); x.durum = 'claude_bekliyor';
     x.aciklama = 'Hazırlık bitti; Claude sohbette işe devam ediyor.'; J.olay(x, "İş Claude'a hazır.");
   });
@@ -254,7 +273,7 @@ async function klipHazirla(klasor, degistir) {
     yaz('1/3 Kaydın sesi yazıya dökülüyor (bu bilgisayarda; uzun kayıtta sürer, ilerleme aşağıda).');
     degistir(x => { J.asamaKoy(x, 'ses', 'suruyor', ''); x.aciklama = 'Kaydın sesi yazıya dökülüyor (bu bilgisayarda). Uzun kayıtta bu biraz sürer.'; });
     let son = 0;
-    const r = await calistir(PY[0], [...PY.slice(1), path.join(KOD, 'ses_yazi.py'), '--uzun', kayit, hedef, String(is.ses_izi || 0)], klasor,
+    const r = await calistir(PY[0], [...PY.slice(1), path.join(KOD, 'ses_yazi.py'), '--uzun', kayit, hedef, String(is.ses_izi || 0), ...dilArg(is)], klasor,
       8 * 3600 * 1000, satir => {
         const m = satir.match(/^ILERLEME (\d+)\/(\d+) parca %(\d+).*kalan ~(\d+) sn/);
         if (!m || Date.now() - son < 3000) return; son = Date.now();
@@ -299,7 +318,7 @@ async function klipHazirla(klasor, degistir) {
         : 'Kayıtta kamera kutusu bulunamadı: ' + kam.not + '. Claude kareye bakıp karar verecek.');
     }
     J.asamaKoy(x, 'ses', 'tamam', `${n} kelime, ${Math.round(y.sure / 60)} dk kayıt, ${Math.round(y.sure_sn || 0)} sn sürdü`);
-    J.olay(x, `Kayıt yazıya döküldü: ${n} kelime (${Math.round(y.sure / 60)} dk). Aday anlar çıkarıldı.`);
+    J.olay(x, `Kayıt yazıya döküldü: ${n} kelime (${Math.round(y.sure / 60)} dk${dilYazi(y)}). Aday anlar çıkarıldı.`);
     if (isr) for (const g of isr.gunluk || []) J.olay(x, 'İşaretler: ' + g + '.');
     J.asamaKoy(x, 'kanit', 'claude', ''); x.durum = 'claude_bekliyor';
     x.aciklama = x.anlar && x.anlar.length ? `Hazırlık bitti; Claude verilen ${x.anlar.length} anı cümle sınırlarına oturtup kuracak.`
@@ -319,4 +338,4 @@ function yazamadi(klasor, degistir, r) {
 
 module.exports = { PANEL, MOTOR, KOD, PY, SHORT_TURLER, VIDEO_UZ, SES_UZ, SOHBET_UZ, AN_RE, KOPYA_SINIR, SHORT_EN_AZ_SN, SHORT_EN_AZ_KELIME,
   ciktiVer, dakika, virgul, guvenliAd, bosYer, yeniId, claudeIcin, probe, calistir, kurulumEksigi, yaziCihazi, yaziTahmini,
-  hazirlikSuruyor, hazirla };
+  dilKontrol, hazirlikSuruyor, hazirla };
