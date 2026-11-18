@@ -73,7 +73,14 @@ function denetle(ad, video, zaman, ses, sinir, gereken, klip) {
   if (/^SONUC:\s*KALDI/.test(sonuc)) neden.push(sonuc.replace(/^SONUC:\s*KALDI:?\s*/, ''));
   if (eksik.length) neden.push('yapılmayan kontrol: ' + eksik.join(', '));
   const kopya = satirlar.filter(s => /^KOPYA\s/.test(s));
-  const ozet = [kopya.length > 1   // a shots folder: one line for all of its shots
+  // the black-frame check in a few words (its full line carries the video's path)
+  const sy = (satirlar.find(s => /^SIYAH\s/.test(s)) || '').match(/siyahlik (\d+)/);
+  const siyah = sy ? 'SIYAH 1-2 karelik siyah kare ' + sy[1] : '';
+  if (siyah && neden.length && !neden.some(n => /siyah kare/.test(n))) neden.push(siyah);
+  // a shot's first frame shown twice after a cut: kontrol.py only warns, so it never turns the result into KALDI
+  const dn = (satirlar.find(s => /^DONMA\s/.test(s)) || '').match(/iki kez gorunen ilk kare (\d+)(.*)$/);
+  if (dn && +dn[1] > 0) uyari.push(ad + ': çekim başında bir kare donma' + dn[2].replace(/\s+/g, ' ') + ' (kontrol.py donma; ayrıntı ' + path.basename(video) + '.kontrol.txt)');
+  const ozet = [siyah, kopya.length > 1   // a shots folder: one line for all of its shots
     ? `KOPYA ${kopya.length} çekim, hareket içinde tekrar eden kare toplam ${kopya.reduce((t, s) => t + +((s.match(/tekrar eden kare (\d+)/) || [])[1] || 0), 0)}`
     : kopya[0], ...satirlar.filter(s => /^(KAYMA|SON)\s/.test(s))].filter(Boolean).map(s => s.replace(/\s+/g, ' ')).join(' | ');
   const boyut = (satirlar[satirlar.findIndex(s => s.startsWith('OZET')) + 1] || '').replace(/\s+/g, ' ');

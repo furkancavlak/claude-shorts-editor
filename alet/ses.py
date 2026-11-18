@@ -6,8 +6,9 @@
   olc    loudness of any audio/video:            py -3 alet/ses.py olc is/klip.mp4
   ekle   put the final sound on the rendered picture (video copied, not re-encoded):
                                                  py -3 alet/ses.py ekle render/goruntu.mp4 is/ses-final.wav is/klip.mp4
-         second round (new render or new mix): the same command + --ustune-yaz replaces an output ekle wrote before
-         (never a file it did not write). It records its inputs, so kontrol.py hepsi fails on an output older than them.
+         second round (new render or new mix): the same command + --ustune-yaz replaces an output ekle wrote before,
+         or the job's own delivery (short.mp4 / klipler/klip-N.mp4 in the job folder the render or sound comes from);
+         never another file it did not write. It records its inputs, so kontrol.py hepsi fails on an output older than them.
 
 Sound kinds (all synthesized, every parameter optional):
   tik   short clock click           (f0 = pitch, default 1650 Hz)
@@ -264,15 +265,44 @@ def cmd_olc(a):
     print('%s: %.1f LUFS, tepe %.1f dBTP, LRA %.1f' % (a.dosya, L['I'], L['TP'], L['LRA']))
 
 
+def is_teslimi(cikti, girdiler):
+    """True when `cikti` is a job's own delivery: <job>/short.mp4, or <job>/klipler/<clip>.mp4 (klip-N, or a "video" of
+    klipler/klipler.json), in a job folder (it has is.json) that the render or the sound being attached comes from.
+    Such a file may be replaced with --ustune-yaz even with no record of the kit writing it (a delivery made before the
+    records, or moved onto its name by hand). Any other file the kit did not write is never replaced."""
+    d, ad = os.path.split(os.path.abspath(cikti))
+    if ad.lower() == 'short.mp4':
+        isk = d
+    elif os.path.basename(d).lower() == 'klipler':
+        isk = os.path.dirname(d)
+        try:
+            adlar = {os.path.basename(str(k.get('video', ''))).lower()
+                     for k in json.load(open(os.path.join(d, 'klipler.json'), encoding='utf-8-sig'))}
+        except (OSError, ValueError, AttributeError, TypeError):
+            adlar = set()
+        if not (re.fullmatch(r'klip-\d+\.mp4', ad, re.I) or ad.lower() in adlar):
+            return False
+    else:
+        return False
+    if not os.path.isfile(os.path.join(isk, 'is.json')):
+        return False
+    kok = os.path.normcase(isk) + os.sep
+    return any(os.path.normcase(os.path.abspath(g)).startswith(kok) for g in girdiler)
+
+
 def cmd_ekle(a):
-    # an existing output is replaced only with --ustune-yaz and only when ses.py ekle wrote it (manifest, _ortak.py)
+    # an existing output is replaced only with --ustune-yaz, and only when ses.py ekle wrote it (manifest, _ortak.py)
+    # or it is the job's own delivery file (is_teslimi)
     ustune = os.path.exists(a.cikti)
-    if ustune and not alet_yazdi_mi(a.cikti):
-        sys.exit('cikti zaten var ve aletler yazdigi kayitli degil: %s (senin dosyan olabilir; ses.py ekle\'nin eski surumu '
-                 'de kayit tutmuyordu). Sesi yeni bir ada ekle; teslim adi sartsa o yeni dosyayi kendi eski mp4\'unun '
-                 'ustune tasi.' % a.cikti)
+    kayitli = ustune and alet_yazdi_mi(a.cikti)
+    teslim = ustune and not kayitli and is_teslimi(a.cikti, (a.goruntu, a.ses))
+    if ustune and not kayitli and not teslim:
+        sys.exit('cikti zaten var ve aletler yazdigi kayitli degil: %s (senin dosyan olabilir). Sesi yeni bir ada ekle. '
+                 'Isin kendi teslim dosyasi (is klasorundeki short.mp4 ya da klipler/klip-N.mp4; render ya da ses ayni '
+                 'isin klasorunden) --ustune-yaz ile yazilir.' % a.cikti)
     if ustune and not a.ustune_yaz:
-        sys.exit('cikti zaten var: %s (ses.py ekle yazmisti; ikinci turda ayni komuta --ustune-yaz ekle)' % a.cikti)
+        sys.exit('cikti zaten var: %s (%s; ikinci turda ayni komuta --ustune-yaz ekle)'
+                 % (a.cikti, 'isin teslim dosyasi' if teslim else 'ses.py ekle yazmisti'))
     if os.path.abspath(a.cikti) in (os.path.abspath(a.goruntu), os.path.abspath(a.ses)):
         sys.exit('cikti, girdilerden biriyle ayni dosya: %s' % a.cikti)
     # the sound is cut to the picture (frames / fps) so the mp4 never runs past its last frame
@@ -319,7 +349,8 @@ def main():
     p = sp.add_parser('olc', help='measure loudness'); p.add_argument('dosya'); p.set_defaults(f=cmd_olc)
     p = sp.add_parser('ekle', help='attach sound to rendered picture (sound cut to the picture length)'); p.add_argument('goruntu'); p.add_argument('ses')
     p.add_argument('cikti'); p.add_argument('--kirpma', action='store_true', help='keep the whole sound even past the last frame')
-    p.add_argument('--ustune-yaz', action='store_true', help='replace an output ses.py ekle wrote before (never a file it did not write)')
+    p.add_argument('--ustune-yaz', action='store_true', help='replace an output ses.py ekle wrote before, or the job\'s '
+                   'own short.mp4 / klipler/klip-N.mp4 (never another file it did not write)')
     p.set_defaults(f=cmd_ekle)
     a = ap.parse_args()
     a.f(a)

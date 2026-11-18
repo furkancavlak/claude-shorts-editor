@@ -10,6 +10,8 @@
   kopya  repeated frames inside motion (fake slow): py -3 alet/kontrol.py kopya is/zaman/video.mp4
   siyah  1-2 black frames between filled ones (a window missing for a frame; captions on it do not hide it):
                                                     py -3 alet/kontrol.py siyah short.mp4
+  donma  WARNING only: a shot's first frame shown twice right after a cut (start a hair past the frame grid):
+                                                    py -3 alet/kontrol.py donma short.mp4
   kayma  sound vs picture drift after attaching:    py -3 alet/kontrol.py kayma klip.mp4 is/ses-final.wav
   son    does it end on the last word (<= 0.10 s):  py -3 alet/kontrol.py son klip.mp4 --zaman is/zaman
          with a bed/music under the voice, measure the voice alone:
@@ -79,14 +81,34 @@ def kopya(path):
     return ['%d tekrar eden kare (ilk: %s)' % (len(bul), bul[:5])] if len(bul) > 2 else []
 
 
-def siyah(path, esik=0.16):
+def donma(path, g=None):
+    """A WARNING only, never a fail: the first frame after a hard cut shown twice while the shot moves on after it =
+    a shot start a hair past the frame grid (22.8667 instead of 22.8666) that the renderer snapped: its first frame
+    repeats (a hidden freeze). Measured 18.11.2026: found both such starts in two Shorts before repair (change 0.09 and
+    0.33 between the two frames), nothing in the three repaired ones (smallest change right after a cut there 0.96).
+    A still shot after a cut is not counted (the picture has to move right after the repeat)."""
+    g = gri_kareler(path) if g is None else g
+    d = np.abs(np.diff(g, axis=0)).mean(axis=(1, 2))        # d[i] = change from frame i to i+1
+    fps = bilgi(path)['video']['fps'] or 30
+    bul = [c for c in range(1, len(d) - 1) if d[c - 1] > 12 and d[c] < 0.5 and d[c + 1] > 1.5]
+    print('DONMA   %s: kesmeden hemen sonra iki kez gorunen ilk kare %d%s' % (
+        path, len(bul), (' -> ' + ', '.join('kare %d (%.3f sn)' % (c, c / fps) for c in bul[:20])) if bul else ''))
+    if bul:
+        print('UYARI   cekim basinda bir kare donma (KALDI degil): o cekimin baslangici kare izgarasinda mi bak (n/fps, '
+              '4 hanede asagi kirpilmis: sahne_baslat.py --yenile), sahne pencereyi kendi koduyla aciyorsa Math.round(t*fps). '
+              'Kaynakta da ayniysa (fragmanin kendi tekrari) sorun degil: kare_bak.py --hiz kaynak ile bak')
+    return bul
+
+
+def siyah(path, esik=0.16, g=None):
     """1-2 (nearly) black frames whose neighbours on both sides are filled = a window missing for a frame or two (a
-    shot whose data-start / data-bas sits a hair after the frame grid, e.g. 3.6667 > 110/30). Content independent:
+    shot whose data-start / data-bas sits a hair after the frame grid, e.g. 3.6667 > 110/30, or stage code that opens
+    and closes windows on t*fps without Math.round: on some frames it lands a hair under the whole number). Content independent:
     captions and labels may stay on the black frame, and a missing part of a split screen counts too. esik = the
     share of the frame that is dark (<= 20 of 255) on those 1-2 frames and at least 10 brighter on BOTH neighbours
     (measured on 18.11.2026 Shorts: real missing windows 0.20-0.92, cuts into a dark shot at most 0.12). A planned
     fade or a dark shot is not caught (the neighbours are dark as well); 3 or more black frames are not caught."""
-    g = gri_kareler(path)
+    g = gri_kareler(path) if g is None else g
     f = g <= 20                                              # dark pixels
     fps = bilgi(path)['video']['fps'] or 30
     n, bul, k = len(g), [], 1
@@ -111,10 +133,14 @@ def siyah(path, esik=0.16):
     print('SIYAH   %s: %d kare, dolu iki kare arasinda 1-2 karelik siyahlik %d%s' % (
         path, n, len(bul), (' -> ' + ', '.join(yer(h) for h in bul[:20])) if bul else ''))
     if bul:
-        print('        not: o karede bir pencere yok. Sahnede data-start / data-bas kare izgarasinda mi bak (n/fps, asagi '
-              'yuvarlanmis: 3.6666, 3.6667 degil; sahne_baslat.py --yenile yuvarlar). Siyah kare cekimin kendisindeyse '
+        print('        not: o karede bir pencere yok. Iki nedeni olur: (1) cekim baslangici kare izgarasinda degil: '
+              'data-start / data-bas n/fps olmali, 4 hanede asagi kirpilmis (3.6666, 3.6667 degil); sahne_baslat.py '
+              '--yenile duzeltir. (2) Sahnenin kendi kodu pencereyi t*fps ya da saniyeyle acip kapatiyor: karsilastirmayi '
+              'Math.round(t*fps) ile yap (alet/ALETLER.md, "Kesme ani kare ile"). Siyah kare cekimin kendisindeyse '
               '(fragmanin kendi kesmesi) kare_bak.py --hiz kaynak ile bak, cekimi o kareden sonra baslat')
-    return ['%d yerde 1-2 karelik siyah kare (ilk: %s)' % (len(bul), yer(bul[0]))] if bul else []
+    return ['%d yerde 1-2 karelik siyah kare (ilk: %s; ya cekim baslangici kare izgarasinda degil: sahne_baslat.py '
+            '--yenile, ya da sahnenin pencere kodu kare sayisini yuvarlamiyor: Math.round(t*fps))'
+            % (len(bul), yer(bul[0]))] if bul else []
 
 
 def sahnedeki_cekimler(video, zaman, sahne=None):
@@ -284,6 +310,7 @@ def main():
     p.add_argument('--genislik', type=int, default=300, help='tile width (default 300)')
     p = sp.add_parser('kopya'); p.add_argument('video')
     p = sp.add_parser('siyah'); p.add_argument('video')
+    p = sp.add_parser('donma'); p.add_argument('video')
     p = sp.add_parser('kayma'); p.add_argument('video'); p.add_argument('master')
     p = sp.add_parser('son'); p.add_argument('video'); p.add_argument('--zaman', help='zaman.py folder (reads the last word)')
     p.add_argument('--konusma', help='voice-only track on the same timeline (Short: ses/ses.wav; clip: zaman/ses.wav)')
@@ -318,6 +345,8 @@ def main():
         kopya(a.video)
     elif a.komut == 'siyah':
         siyah(a.video)
+    elif a.komut == 'donma':
+        donma(a.video)
     elif a.komut == 'kayma':
         kayma(a.video, a.master)
     elif a.komut == 'son':
@@ -327,7 +356,9 @@ def main():
     elif a.komut == 'hepsi':
         hata = ozet(a.video, min_s=a.min, max_s=a.max)
         hata += tazelik(a.video, a.ses)
-        hata += siyah(a.video)
+        g = gri_kareler(a.video)                             # decoded once for both
+        hata += siyah(a.video, g=g)
+        donma(a.video, g=g)                                  # a warning line only, never KALDI
         if a.zaman:
             # clip: zaman.py's video.mp4; info Short: no video.mp4, the shots of that cekim.py folder the stage uses
             vz = os.path.join(a.zaman, 'video.mp4')

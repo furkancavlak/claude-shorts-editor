@@ -12,8 +12,9 @@ Info Short (several shots): give only the shots you use, with where they sit on 
   "dosya": an absolute path, or a path relative to the folder you run the command in (the engine root); only when
   nothing is there, relative to the folder of cekimler.json. "ad" (optional) = window and media name, default the
   file name without .mp4. Each shot window fills the canvas and is visible only from bas to bas+sure: a hard cut,
-  a starting point to replace with your own edit, not an edit. bas and bas+sure are put on the frame grid (n/fps),
-  rounded DOWN (3.6667 -> 3.6666): a start a hair after a frame leaves that frame black (IZGARA line says so).
+  a starting point to replace with your own edit, not an edit. bas and bas+sure are put on the frame grid (n/fps,
+  written cut DOWN to 4 decimals: 3.6666, not 3.6667): a start a hair after a frame leaves that frame black (IZGARA
+  line says so). An end is the same number as the start of the shot that follows it; with none, it never gets shorter.
 Refresh after the time map or the shots changed (re-copies the media, updates the timing attributes and the length;
 your scene code is not touched; matching is by the media file name kaynak/<name>.mp4):
   py -3 alet/sahne_baslat.py is/sahne --zaman is/v --cekimler is/cekimler.json --yenile
@@ -93,23 +94,42 @@ __BASLANGIC__
 '''
 
 
-def izgara(t, fps):
-    """a time on the frame grid (n/fps), rounded DOWN and written down (4 decimals) so it is never past the frame: a
-    start a hair after frame n (3.6667 > 110/30) leaves frame n without the window = one black frame in the video.
-    A value within 0.02 frame of a grid point (1.4333 = 43/30 written short) is that grid point."""
+def bas_karesi(t, fps):
+    """the frame a START sits on: a value within 0.02 frame of a grid point is that point (1.4333 and 1.4334 = 43/30
+    written short or long), else the frame BEFORE it: a start a hair after frame n (3.6667 > 110/30) left frame n
+    without the window = one black frame in the video."""
     k = t * fps
-    n = round(k) if abs(k - round(k)) < 0.02 else math.floor(k)
+    return round(k) if abs(k - round(k)) < 0.02 else math.floor(k)
+
+
+def izgara(n, fps):
+    """frame n as seconds, cut DOWN to 4 decimals (110/30 -> 3.6666, never 3.6667): never past the frame"""
     return math.floor(n / fps * 10000 + 1e-6) / 10000
 
 
-def izgaraya_oturt(liste, fps):
-    """bas and son (= bas + sure) of every shot onto the frame grid; says which ones moved"""
-    for c in liste:
-        bas, son = izgara(c['bas'], fps), izgara(c['bas'] + c['sure'], fps)
+def izgaraya_oturt(liste, fps, kare=None):
+    """bas and son (= bas + sure) of every shot onto the frame grid; says which ones moved.
+    bas: bas_karesi. son: when another shot starts there (within 0.02 frame of its written start or of its frame), the
+    very same number as that shot's bas, so the two meet on one frame whatever the rounding; else the grid point at or
+    AFTER it: an end never gets shorter. Why: rounding an end down (8.4334 -> 8.4333) took frame 253 from the shot with
+    nobody to fill it (one black frame in a stage that opens the next window on its own frame count); an end one frame
+    longer at most keeps the shot's last frame for one frame under whatever comes next. kare = the stage's length in
+    frames: an end at or past it is not reported."""
+    bk = [(c, c['bas'] * fps, bas_karesi(c['bas'], fps)) for c in liste]     # shot, written start in frames, frame
+    for c, k, n in bk:
+        bas = izgara(n, fps)
         if abs(bas - c['bas']) > 0.00005:
-            print('IZGARA  %-16s bas %.4f -> %.4f (kare izgarasina asagi yuvarlandi: arada kalan bas o karede pencereyi '
-                  'gostermez, video tek siyah kare olur)' % (c['ad'], c['bas'], bas))
-        c['bas'], c['son'] = bas, max(son, bas)
+            print('IZGARA  %-16s bas %.4f -> %.4f (kare izgarasina oturdu, 4 hanede asagi kirpildi: arada kalan bas o '
+                  'karede pencereyi gostermez, video tek siyah kare olur)' % (c['ad'], c['bas'], bas))
+    for c, k, n in bk:                       # c['bas'] still the written value here: it is set at the end of its turn
+        ks = (c['bas'] + c['sure']) * fps
+        ard = [(abs(ks - k2), n2) for c2, k2, n2 in bk if c2 is not c and (abs(ks - k2) < 0.02 or abs(ks - n2) < 0.02)]
+        ns = max(min(ard)[1] if ard else math.ceil(ks - 1e-4), n)
+        son = izgara(ns, fps)
+        if not ard and abs(son - (c['bas'] + c['sure'])) > 0.00005 and (kare is None or ns < kare):
+            print('IZGARA  %-16s son %.4f -> %.4f (ardindan baslayan cekim yok: bitis kisalmadi, sonraki kare cizgisine '
+                  'uzadi; medya yetmezse son karesi bir kare daha durur)' % (c['ad'], c['bas'] + c['sure'], son))
+        c['bas'], c['son'] = izgara(n, fps), son
 
 
 def cekim_listesi(path):
@@ -212,7 +232,7 @@ def yenile(a, Z):
     if a.cekimler:
         liste = cekim_listesi(a.cekimler)
         m = re.search(r'<div id="root"[^>]*?data-fps="([\d.]+)"', html)
-        izgaraya_oturt(liste, float(m.group(1)) if m else Z['fps'])
+        izgaraya_oturt(liste, float(m.group(1)) if m else Z['fps'], Z.get('kare'))
     else:
         liste = [{'dosya': v, 'ad': os.path.splitext(os.path.basename(v))[0], 'bas': 0.0, 'son': float(sure),
                   'sure': float(sure), 'medya_bas': 0.0} for v in sorted(glob.glob(os.path.join(a.zaman, '*.mp4')))]
@@ -315,7 +335,7 @@ def kur(a, Z, font, liste):
     pen, bas = [], []
     sure = '%.4f' % (Z['kare'] / Z['fps'] - 0.0004)
     if liste:
-        izgaraya_oturt(liste, Z['fps'])
+        izgaraya_oturt(liste, Z['fps'], Z.get('kare'))
         for i, c in enumerate(liste):
             name = c['ad']
             medya_kopyala(c['dosya'], os.path.join(a.klasor, 'kaynak', name + '.mp4'))
