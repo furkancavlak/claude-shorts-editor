@@ -1,0 +1,243 @@
+{
+ "surum": 3,
+ "not": "Tek sözlük. İzleme sayfası (/api/sozluk), server.js, durum.js ve AJAN-TALIMATI.md aynı Türkçe adları buradan alır. Anahtarlar (klip, claude_calisiyor ...) koddur, değişmez; yalnız Türkçe yazılar burada değişir. İş yalnız Claude Code sohbetinden açılır; sayfa yalnız izler.",
+ "ana_turler": {
+  "klip": {
+   "ad": "Klip",
+   "ne": "Uzun bir yayın ya da oyun kaydından dikey klipler."
+  },
+  "short": {
+   "ad": "Short",
+   "ne": "Senin sesin (ya da yazdığın metin) ve oyun ya da fragman görüntüsü."
+  }
+ },
+ "turler": {
+  "klip": {
+   "ad": "Klip",
+   "ana": "klip",
+   "ne": "Uzun kayıttan dikey klipler."
+  },
+  "tek_bilgi": {
+   "ad": "Tek bilgi",
+   "ana": "short",
+   "ne": "Tek bir bilgi, tek sahne."
+  },
+  "liste": {
+   "ad": "Liste",
+   "ana": "short",
+   "ne": "“Bilmen gereken N şey”: her madde ayrı çekim."
+  },
+  "karsilastirma": {
+   "ad": "Karşılaştırma",
+   "ana": "short",
+   "ne": "İki şeyin karşılaştırması (iki oyun, iki sürüm, önce/sonra); yan yana olmak zorunda değil."
+  }
+ },
+ "kurgu": {
+  "sade": {
+   "ad": "Sade",
+   "ne": "Düz kesim: kamera varsa üstte, oyun altta."
+  },
+  "editli": {
+   "ad": "Editli",
+   "ne": "Claude klibe özel kurgu tasarlar."
+  }
+ },
+ "kim": {
+  "sen": "Sıra sende",
+  "claude": "Sıra Claude'da",
+  "motor": "Sıra motorda"
+ },
+ "asamalar": {
+  "ses": {
+   "ad": "Konuşmayı yazıya dökme",
+   "simdi": "Ses yazıya dökülüyor.",
+   "kisa": "Yazıya dökme",
+   "eylem": "Motor konuşmayı yazıya döküyor"
+  },
+  "kanit": {
+   "ad": "Görüntü eşleme",
+   "ad_klip": "En iyi anları seçme",
+   "simdi": "Claude her cümlenin görüntüsünü arıyor.",
+   "simdi_klip": "Claude en iyi anları seçiyor.",
+   "kisa": "Görüntü eşleme",
+   "kisa_klip": "An seçme",
+   "eylem": "Claude her cümleye görüntü arıyor",
+   "eylem_klip": "Claude en iyi anları seçiyor"
+  },
+  "kurgu": {
+   "ad": "Kurgu",
+   "ad_klip": "Klip kurgusu",
+   "simdi": "Short kuruluyor.",
+   "simdi_klip": "Klipler kuruluyor.",
+   "kisa": "Kurgu",
+   "eylem": "Claude kurguluyor",
+   "eylem_klip": "Claude klipleri kurguluyor"
+  },
+  "kapi": {
+   "ad": "Son kontrol",
+   "simdi": "Son kontrol yapılıyor.",
+   "kisa": "Son kontrol",
+   "eylem": "Claude son kontrolü yapıyor"
+  },
+  "hazir": {
+   "ad": "Hazır",
+   "kisa": "Hazır",
+   "eylem": "Video hazır"
+  }
+ },
+ "asama_durumlari": {
+  "bekliyor": "sırada",
+  "suruyor": "sürüyor",
+  "tamam": "tamam",
+  "claude": "Claude'da",
+  "durdu": "durdu",
+  "kaldi": "geçmedi",
+  "hata": "bozuldu"
+ },
+ "durumlar": {
+  "hazirlaniyor": {
+   "ad": "Dosyalar geliyor",
+   "kim": "motor",
+   "simdi": "Dosyalar iş klasörüne alınıyor.",
+   "eylem": "Dosyalar iş klasörüne alınıyor"
+  },
+  "calisiyor": {
+   "ad": "Hazırlanıyor",
+   "kim": "motor",
+   "simdi": "Motor kaydı hazırlıyor: konuşmayı yazıya döküyor, gerekenleri ölçüyor.",
+   "eylem": "Motor kaydı hazırlıyor"
+  },
+  "claude_bekliyor": {
+   "ad": "Claude'a hazır",
+   "kim": "claude",
+   "simdi": "Hazırlık bitti; sıra Claude'da. Sohbet açıksa Claude kendisi devam eder.",
+   "eylem": "Hazırlık bitti, Claude'u bekliyor"
+  },
+  "claude_calisiyor": {
+   "ad": "Claude çalışıyor",
+   "kim": "claude",
+   "simdi": "Claude kurguyu yapıyor.",
+   "eylem": "Claude çalışıyor"
+  },
+  "durdu": {
+   "ad": "Senden bir cevap lazım",
+   "kim": "sen",
+   "simdi": "Claude durdu ve sohbette sana bir şey sordu.",
+   "ne_yap": "Sohbette Claude'un sorusunu cevapla.",
+   "eylem": "Claude sohbette sana bir şey sordu"
+  },
+  "kaldi": {
+   "ad": "Son kontrolden geçmedi",
+   "kim": "sen",
+   "simdi": "Video son kontrolden geçmedi; Claude sohbette nedenini anlattı.",
+   "ne_yap": "Sohbette “düzelt ve yeniden dene” yaz ya da “böyle kalsın” de.",
+   "eylem": "Video son kontrolden geçmedi"
+  },
+  "hazir": {
+   "ad": "Hazır",
+   "kim": "sen",
+   "simdi": "Video hazır; izleme sayfasında Son çıkan'da.",
+   "eylem": "Video hazır"
+  },
+  "hata": {
+   "ad": "Bir şey bozuldu",
+   "kim": "sen",
+   "simdi": "İş bir yerde takıldı.",
+   "ne_yap": "Sohbette “{is} işine devam et” yaz.",
+   "eylem": "İş durdu"
+  }
+ },
+ "ozel_durumlar": {
+  "sessiz": {
+   "ad": "Claude ses vermiyor",
+   "kim": "sen",
+   "ne_oldu": "Claude {dk} dakikadır haber vermedi.",
+   "ne_yap": "Sohbete bak: Claude bir şey soruyorsa cevapla. Sohbet kapandıysa yeni sohbette “{is} işine devam et” yaz.",
+   "eylem": "Claude {dk} dakikadır haber vermedi"
+  },
+  "yarida": {
+   "ad": "Yarıda kaldı",
+   "kim": "sen",
+   "ne_oldu": "İşi hazırlayan komut yarıda kapandı.",
+   "ne_yap": "Sohbette “{is} işine devam et” yaz.",
+   "eylem": "İş yarıda kaldı"
+  }
+ },
+ "cevap_bekliyor": "Claude sohbette senden bir cevap bekliyor",
+ "hazir_soru": "Claude sohbette sana tek bir soru sordu: “{soru}” İstersen cevapla, istersen “geç” de.",
+ "kurulum": {
+  "eksik": "Motorun çalışması için bir şey eksik. Claude Code'a “bu depoyu kur” yaz.",
+  "liste": "Ne eksik?"
+ },
+ "defter": {
+  "baslik": "Tarz defteri",
+  "giris": "Videolarına verdiğin cevaplardan Claude'un tuttuğu notlar, senin sözlerinle. İpucudur, kural değil: o günkü isteğin hep üstündür.",
+  "yok": "İlk videona yorum yaptığında sözlerin burada görünecek.",
+  "kapali": "Defter kapalı: Claude soru sormuyor ve not tutmuyor. Açmak için sohbette Claude'a “tekrar sor” de.",
+  "tercihler": "Kalıcı tercihlerin",
+  "sayilanlar": "Sayılanlar",
+  "sayilanlar_not": "Aynı şeyi {esik} ayrı videoda söylersen Claude “hep böyle yapayım mı?” diye sorar.",
+  "tutmayanlar": "Denendi, tutmadı ya da beğenmedin",
+  "celiskiler": "Cevap bekleyen çelişki",
+  "celiski_not": "İki cevabın birbirini tutmuyor. Claude sıradaki videoda ikisini gösterip hangisini istediğini soracak; kendisi seçmez.",
+  "son": "Son kayıtlar",
+  "tercih": "Kalıcı tercih · {n} videoda söyledin",
+  "tercih_acik": "Kalıcı tercih · açıkça “hep böyle” dedin",
+  "eski": "uzun zamandır tekrar etmedin",
+  "sayilan_bir": "{n}/{esik} · bir kez daha söylersen Claude sorar",
+  "sayilan": "{n}/{esik} · {kalan} videoda daha söylersen Claude sorar",
+  "sayilan_soracak": "{n}/{esik} · Claude sıradaki videoda “hep böyle yapayım mı?” diye soracak",
+  "celiski": "İki sözün çelişiyor · Claude sıradaki videoda hangisini istediğini soracak",
+  "deney": "Claude denedi, tutmadı",
+  "ret": "Beğenmedin",
+  "ya_da": "ya da"
+ },
+ "kayit_turleri": {
+  "begeni": "beğendin",
+  "degisiklik": "değişiklik istedin",
+  "ret": "beğenmedin",
+  "cevap2": "bir dahakine",
+  "deney": "deneme",
+  "sessiz": "yorum yok",
+  "karar": "karar"
+ },
+ "kontroller": {
+  "KANIT": "Görüntü",
+  "BUYUKLUK": "Büyüklük",
+  "SON": "Son cümle",
+  "KAYNAK SESI": "Videoların kendi sesi",
+  "KANCA": "İlk yarım saniye",
+  "DONUK": "Duran görüntü",
+  "MADDE HAREKETI": "Liste maddeleri",
+  "BASLANGIC": "İlk kelime",
+  "BITIS": "Cümle sonu",
+  "ALTYAZI": "Altyazı",
+  "SURE": "Uzunluk",
+  "KADRAJ": "Çerçeve",
+  "HIZ": "Hız",
+  "SES": "Kaydın sesi",
+  "BINDIRME": "Çizim ve vurgu sözü",
+  "KLIP": "Klip dosyaları",
+  "short": "Short dosyası"
+ },
+ "sira_sende": {
+  "baslik": "Sıra sende",
+  "durdu": "Claude sohbette sana bir şey sordu.",
+  "kaldi": "Video son kontrolden geçmedi; Claude sohbette düzeltsin mi, böyle mi kalsın diye soruyor.",
+  "hazir": "Claude sohbette “{soru}” diye soruyor."
+ },
+ "baslat": {
+  "giris": "Şu an süren iş yok. Yeni video için Claude Code sohbetine şöyle yaz:",
+  "ornekler": [
+   "şu videodan 3 klip çıkar: <yol>",
+   "şu metinle bir Liste Short'u yap, videolar şu klasörde"
+  ]
+ },
+ "bolumler": {
+  "simdi": "Şimdi",
+  "son_cikan": "Son çıkan",
+  "onceki": "Önceki çıktılar",
+  "cikti_yok": "Henüz çıkan video yok. Biten ilk video burada büyük görünür."
+ }
+}

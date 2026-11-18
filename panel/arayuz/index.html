@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Short Motoru · İzleme</title>
+<meta name="description" content="Short motorunun izleme sayfası: yalnız gösterir. İş Claude Code sohbetinden açılır. Ajanlar için: GET /api/yardim, GET /api/ozet.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64' fill='%23FFD044'%3E%3Cstyle%3E@media (prefers-color-scheme: light){.m{fill:%23805B00}}%3C/style%3E%3Cpath class='m' d='M18 4H46Q50 4 50 8V20L14 38V8Q14 4 18 4ZM14 44L50 26V56Q50 60 46 60H18Q14 60 14 56Z'/%3E%3C/svg%3E">
+<script>try { if (localStorage.getItem('panel-tema') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (_) {}</script>
+<link rel="stylesheet" href="/stil.css">
+</head>
+<body>
+<header class="ust">
+  <div class="ust-ic">
+    <div class="marka">
+      <!-- brand mark (drawn by Codex): a vertical frame with one diagonal cut -->
+      <svg class="marka-isaret" xmlns="http://www.w3.org/2000/svg" width="18" height="28" viewBox="0 0 18 28" aria-hidden="true"><path d="M2 0H16Q18 0 18 2V8L0 17V2Q0 0 2 0ZM0 20L18 11V26Q18 28 16 28H2Q0 28 0 26Z"/></svg>
+      <span class="marka-ad">SHORT MOTORU</span><span class="marka-alt">izleme</span>
+    </div>
+    <div class="ust-sag">
+      <span class="yerel" data-ajan="baglanti"><span class="nokta" id="baglanti"></span><span id="baglantiYazi">Kendiliğinden yenilenir</span></span>
+      <div class="tema" role="group" aria-label="Görünüm" data-ajan="tema">
+        <button type="button" data-tema="dark">Koyu</button>
+        <button type="button" data-tema="light">Açık</button>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="kurulum-serit" id="kurulumSerit" data-ajan="kurulum" hidden></div>
+
+<main class="sayfa" aria-live="polite">
+  <div class="ust-izgara" id="ustIzgara">
+    <section class="bolum simdi" aria-labelledby="simdiBaslik">
+      <h2 id="simdiBaslik" class="bolum-baslik" data-bolum="simdi">Şimdi</h2>
+      <div id="cevapSerit" data-ajan="cevap-bekliyor" hidden></div>
+      <div id="simdiListe" data-ajan="simdi"></div>
+    </section>
+    <section class="bolum son-cikan" id="sonCikanBolum" aria-labelledby="sonBaslik" hidden>
+      <h2 id="sonBaslik" class="bolum-baslik" data-bolum="son_cikan">Son çıkan</h2>
+      <div id="sonCikan" data-ajan="son-cikan"></div>
+    </section>
+  </div>
+
+  <section class="bolum onceki" id="oncekiBolum" aria-labelledby="oncekiBaslik" hidden>
+    <h2 id="oncekiBaslik" class="bolum-baslik" data-bolum="onceki">Önceki çıktılar</h2>
+    <div id="ciktiListe" data-ajan="ciktilar"></div>
+  </section>
+
+  <section class="bolum" aria-labelledby="defterBaslik">
+    <h2 id="defterBaslik" class="bolum-baslik">Tarz defteri</h2>
+    <div id="defter" data-ajan="defter"></div>
+  </section>
+</main>
+<script src="/uygulama.js"></script>
+</body>
+</html>

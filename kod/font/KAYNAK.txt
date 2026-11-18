@@ -1,0 +1,6 @@
+Anton.ttf - display font for on-screen text (loaded by kod/motor.py).
+Font: Anton Regular, Version 2.116 (name table: "Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)").
+License: SIL Open Font License, Version 1.1. Full text: LISANS.txt in this folder (the font's name table points to https://scripts.sil.org/OFL).
+License text taken unchanged on 2026-11-18 from https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt
+(identical to OFL.txt in https://github.com/googlefonts/AntonFont).
+File size 95,036 bytes. SHA-256 04c3644dab4b89be6dfb0cbf0a056063c94f06ce920d9fdba4268d731f73430c

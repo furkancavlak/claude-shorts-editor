@@ -1,0 +1,7 @@
+# Motorun Python paketleri. Sürümler, motorun denendiği bilgisayardaki sürümler (Windows 10, Python 3.14.5).
+# Kurmak için: py -3 -m pip install -r requirements.txt
+numpy==2.4.6
+Pillow==12.2.0
+scipy==1.17.1
+opencv-python==5.0.0.93
+faster-whisper==1.2.1

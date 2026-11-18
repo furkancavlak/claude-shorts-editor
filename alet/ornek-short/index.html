@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>GTA VI — fragmandaki dört şey (wow 1)</title>
+<script src="assets/gsap.min.js"></script>
+<style>
+@font-face { font-family: "WowAnton"; src: url("assets/fonts/Anton.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "WowMono"; src: url("assets/fonts/JetBrainsMono.ttf") format("truetype"); font-weight: 100 800; }
+:root { --ink: #140A1F; --paper: #FFF4EA; --pink: #FF3D8B; --orange: #FF7A3D; --gold: #FFC23D; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+
+.layer { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: hidden; display: none; background: var(--ink); }
+.cam { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 540px 960px; }
+.cam video { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+.grade { filter: contrast(1.06) saturate(1.10); }
+.scrim { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14,6,22,0.50) 0px, rgba(14,6,22,0.0) 470px),
+    linear-gradient(0deg, rgba(14,6,22,0.62) 0px, rgba(14,6,22,0.34) 520px, rgba(14,6,22,0.0) 980px); }
+.wash { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; background: var(--paper); opacity: 0; }
+/* veil: covers the incoming shot outside the numeral windows once the outgoing shot has run out of frames */
+#veil { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; z-index: 15; display: none; }
+
+/* captions ---------------------------------------------------------------- */
+.cap { position: absolute; left: 64px; bottom: 420px; width: 880px; display: flex; flex-direction: column; align-items: flex-start; gap: 0px; font-family: "WowAnton", sans-serif; color: #fff; }
+.line { display: flex; flex-direction: row; align-items: flex-end; gap: 0.20em; line-height: 1.14; }
+/* the mask is taller than the caps so İ Ö Ü dots, the Ğ breve and Ç Ş cedillas are never cut */
+.w { position: relative; display: inline-block; overflow: hidden; padding: 0.26em 0.10em 0.17em; margin: -0.26em -0.10em -0.17em; }
+.w .i { position: relative; display: inline-block; white-space: pre; transform-origin: 0% 100%; text-shadow: 0 3px 0 rgba(20,10,31,0.32), 0 0 30px rgba(20,10,31,0.55); }
+.w .i .lt { display: inline-block; }
+.w.k .i { color: var(--ink); text-shadow: none; }
+.w .slab { position: absolute; left: 0.02em; right: 0.02em; top: 0.20em; bottom: 0.09em; background: linear-gradient(90deg, var(--pink), var(--orange) 70%, var(--gold)); transform-origin: 0% 50%; transform: scaleX(0); display: none; }
+.w.k .slab { display: block; }
+
+/* machine layer ------------------------------------------------------------ */
+.mono { font-family: "WowMono", monospace; font-weight: 700; }
+.tape { display: inline-block; background: rgba(20,10,31,0.82); color: #fff; padding: 6px 12px 5px; white-space: pre; }
+.chip { position: absolute; left: 64px; top: 300px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.chip .tape { font-size: 27px; letter-spacing: 0.04em; }
+.chip .src { color: #FFB3CE; }
+
+#stamp { position: absolute; left: 64px; top: 410px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+#stamp .big { font-family: "WowAnton", sans-serif; font-size: 78px; line-height: 1; color: var(--ink); padding: 10px 16px 4px; background: linear-gradient(90deg, var(--pink), var(--orange) 70%, var(--gold)); white-space: pre; }
+#stamp .tape { font-size: 30px; letter-spacing: 0.03em; }
+
+/* paint (the numeral strokes) ---------------------------------------------- */
+#paint { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; z-index: 20;
+  background: linear-gradient(180deg, var(--pink) 0px, var(--pink) 330px, var(--orange) 760px, var(--gold) 1130px, var(--gold) 1920px);
+  clip-path: polygon(0 0, 0 0, 0 0); }
+
+/* HUD ------------------------------------------------------------------------ */
+#hud { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; z-index: 30; }
+#kicker { position: absolute; left: 64px; top: 148px; font-size: 25px; letter-spacing: 0.16em; }
+#kicker b { color: var(--gold); font-weight: 800; }
+#count { position: absolute; left: 64px; top: 200px; width: 300px; height: 84px; }
+.hs { position: absolute; left: 0; top: 0; width: 16px; height: 74px; transform-origin: 8px 74px; background: linear-gradient(180deg, var(--pink), var(--orange) 55%, var(--gold)); box-shadow: 0 0 0 3px rgba(20,10,31,0.55); }
+#clabel { position: absolute; left: 120px; top: 18px; height: 44px; overflow: hidden; }
+#clabel .tape { font-size: 30px; letter-spacing: 0.06em; display: block; }
+
+#grain { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; mix-blend-mode: overlay; opacity: 0.16; z-index: 40; }
+#vig { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; z-index: 41; background: radial-gradient(ellipse 78% 62% at 50% 46%, rgba(0,0,0,0) 58%, rgba(8,3,14,0.42) 100%); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="wow" data-start="0" data-duration="14.4333" data-width="1080" data-height="1920">
+
+  <audio id="mix" data-start="0" data-duration="14.4333" data-track-index="30" data-volume="1" src="assets/audio/master-v5.wav"></audio>
+
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="hblur" x="-10%" y="0%" width="120%" height="100%" color-interpolation-filters="sRGB"><feGaussianBlur id="hblurG" stdDeviation="0 0"/></filter>
+  </svg>
+
+  <!-- L0 hook A: Vice City beach (Trailer 1, 0:21) -->
+  <div id="L0" class="layer">
+    <div id="cam0" class="cam grade"><video id="v0" data-start="0" data-duration="1.5333" data-track-index="1" data-media-start="0" src="assets/v/beach.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip0" style="top:236px"><span class="tape">1. FRAGMAN · 0:21</span></div>
+    <div class="cap" id="capA"></div>
+  </div>
+
+  <!-- L1 hook B/C: driving POV (Trailer 2, 0:34) -->
+  <div id="L1" class="layer">
+    <div id="cam1" class="cam grade"><video id="v1" data-start="1.0667" data-duration="3.7" data-track-index="2" data-media-start="0" src="assets/v/pov2.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip1" style="top:236px"><span class="tape">2. FRAGMAN · 0:34</span></div>
+    <div id="stamp">
+      <span class="big" id="st1">AN EXTENDED LOOK</span>
+      <span class="tape mono" id="st2">27.08.2026 · TAMAMI PS5'TE OYUN İÇİ</span>
+      <span class="tape mono src" id="st3" style="color:#FFB3CE">KAYNAK: ROCKSTARGAMES.COM/VI</span>
+      <span class="tape mono src" id="st4" style="color:#FFB3CE">+ KEENGAMER · DEXERTO DÖKÜMLERİ</span>
+    </div>
+    <div class="cap" id="capB"></div>
+    <div class="cap" id="capC"></div>
+  </div>
+
+  <!-- L2 item 1: airboat (Trailer 1, 0:19) + chase from the helicopter (Trailer 2, 2:19) -->
+  <div id="L2" class="layer">
+    <div id="cam2a" class="cam grade" style="transform-origin:437px 950px"><video id="v2a" data-start="4.5333" data-duration="1.8" data-track-index="3" data-media-start="0" src="assets/v/airboat.mp4" muted playsinline></video></div>
+    <div id="cam2b" class="cam grade" style="transform-origin:756px 720px"><video id="v2b" data-start="6.3333" data-duration="0.9" data-track-index="4" data-media-start="0" src="assets/v/heli2.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip2"><span class="tape">1. FRAGMAN · 0:19  +  2. FRAGMAN · 2:19</span><span class="tape src">KAYNAK: KEENGAMER · DEXERTO</span></div>
+    <div class="cap" id="capD"></div>
+  </div>
+
+  <!-- L3 item 2: jet ski (Trailer 2, 2:20) -->
+  <div id="L3" class="layer">
+    <div id="cam3" class="cam grade" style="transform-origin:540px 1080px"><video id="v3" data-start="7.2" data-duration="1.7667" data-track-index="5" data-media-start="0" src="assets/v/jetski2.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip3"><span class="tape">2. FRAGMAN · 2:20</span><span class="tape src">KAYNAK: KEENGAMER</span></div>
+    <div class="cap" id="capE"></div>
+    <div class="wash" id="wash3"></div>
+  </div>
+
+  <!-- L4 item 3: drift (Trailer 1, 1:10), real-frame speed ramp -->
+  <div id="L4" class="layer">
+    <div id="cam4" class="cam grade" style="transform-origin:560px 1000px"><video id="v4" data-start="8.9" data-duration="2.1" data-track-index="6" data-media-start="0" src="assets/v/car.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip4"><span class="tape">1. FRAGMAN · 1:10</span><span class="tape src">KAYNAK: KEENGAMER · DEXERTO · AUREVIEW</span></div>
+    <div class="cap" id="capF"></div>
+  </div>
+
+  <!-- L5 item 4: beach gym (Trailer 2, 0:38) -->
+  <div id="L5" class="layer">
+    <div id="cam5" class="cam grade" style="transform-origin:560px 900px"><video id="v5" data-start="10.6667" data-duration="3.7667" data-track-index="7" data-media-start="0" src="assets/v/gym2.mp4" muted playsinline></video></div>
+    <div class="scrim"></div>
+    <div class="chip mono" id="chip5"><span class="tape">2. FRAGMAN · 0:38</span><span class="tape src">KAYNAK: KEENGAMER · DEXERTO · AUREVIEW</span></div>
+    <div class="cap" id="capG"></div>
+    <div class="cap" id="capH"></div>
+  </div>
+
+  <div id="veil"></div>
+  <div id="paint"></div>
+
+  <div id="hud">
+    <div id="kicker" class="mono"><span class="tape"><b>GTA VI</b> · FRAGMAN → OYNANIŞ</span></div>
+    <div id="count">
+      <div class="hs" id="hs1"></div><div class="hs" id="hs2"></div><div class="hs" id="hs3"></div>
+      <div id="clabel" class="mono"><span class="tape" id="cl1">1/4</span><span class="tape" id="cl2">2/4</span><span class="tape" id="cl3">3/4</span><span class="tape" id="cl4">4/4</span></div>
+    </div>
+  </div>
+
+  <canvas id="grain" width="540" height="960"></canvas>
+  <div id="vig"></div>
+</div>
+
+<script>
+(() => {
+  const FPS = 30, END = 433 / 30;
+  // ------------------------------------------------------------------ helpers (everything is a pure function of t)
+  const $ = (s) => document.querySelector(s);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, p) => a + (b - a) * p;
+  const EZ = {}; const E = (n) => EZ[n] || (EZ[n] = gsap.parseEase(n));
+  const prog = (t, t0, d) => clamp((t - t0) / d);
+  // keyframe track: start value, then [t0, dur, to, ease] segments in time order
+  const K = (t, v0, segs) => { let v = v0; for (const [t0, d, to, e] of segs) { if (t < t0) return v; if (d <= 0 || t >= t0 + d) { v = to; continue; } return v + (to - v) * E(e || 'power2.out')((t - t0) / d); } return v; };
+  const css = (el, k, v) => { if (el['__' + k] !== v) { el.style[k] = v; el['__' + k] = v; } };
+  const show = (el, on) => css(el, 'display', on ? 'block' : 'none');
+  const op = (el, o) => css(el, 'opacity', String(+clamp(o).toFixed(3)));
+  const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+
+  // ------------------------------------------------------------------ geometry: numerals are lists of quads (clockwise)
+  const rectQ = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  const strokeQ = (cx, top, bot, w) => rectQ(cx - w / 2, top, cx + w / 2, bot);
+  const armQ = (xt, xb, top, bot, hw) => [[xt - hw, top], [xt + hw, top], [xb + hw, bot], [xb - hw, bot]];
+  // IV: I stroke, then a V whose arms meet at the bottom
+  const ivQ = (cx, top, bot) => [strokeQ(cx - 264, top, bot, 128), armQ(cx - 66, cx + 99, top, bot, 64), armQ(cx + 264, cx + 99, top, bot, 64)];
+  const offQ = (q, dx, dy) => q.map(([x, y]) => [x + dx, y + dy]);
+  const lp = (a, b, p) => [lerp(a[0], b[0], p), lerp(a[1], b[1], p)];
+  // sub-quad between a and b along the stroke's long axis (0 = top edge, 1 = bottom edge)
+  const partQ = (q, a, b) => [lp(q[0], q[3], a), lp(q[1], q[2], a), lp(q[1], q[2], b), lp(q[0], q[3], b)];
+  const lerpQ = (q0, q1, p) => q0.map((pt, i) => lp(pt, q1[i], p));
+  const camPt = ([x0, y0], c) => { const a = c.r * Math.PI / 180, co = Math.cos(a), si = Math.sin(a); const x = (x0 - c.px) * c.s, y = (y0 - c.py) * c.s; return [c.px + c.tx + x * co - y * si, c.py + c.ty + x * si + y * co]; };
+  const camQ = (q, c) => q.map((p) => camPt(p, c));
+  const poly = (quads) => {
+    if (!quads.length) return 'polygon(0px 0px, 0px 0px, 0px 0px)';
+    const pts = [];
+    quads.forEach((q) => { q.forEach((p) => pts.push(p)); pts.push(q[0]); });
+    for (let i = quads.length - 2; i >= 0; i--) pts.push(quads[i][0]);
+    return 'polygon(' + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(', ') + ')';
+  };
+  // smear: a stroke travelling fast is drawn over the span it covered in the last SM seconds (fake motion blur)
+  // the tail is capped (SMAX px) so a very fast first frame reads as a streak, not a block
+  const SM = 0.035, SMAX = 110;
+  const tail = (now, prev) => now + clamp(prev - now, -SMAX, SMAX);
+  const smearV = (q, dyNow, dyPrev) => { const p = tail(dyNow, dyPrev), a = Math.min(dyNow, p), b = Math.max(dyNow, p); return [[q[0][0], q[0][1] + a], [q[1][0], q[1][1] + a], [q[2][0], q[2][1] + b], [q[3][0], q[3][1] + b]]; };
+  const smearH = (q, dxNow, dxPrev) => { const p = tail(dxNow, dxPrev), a = Math.min(dxNow, p), b = Math.max(dxNow, p); return [[q[0][0] + a, q[0][1]], [q[1][0] + b, q[1][1]], [q[2][0] + b, q[2][1]], [q[3][0] + a, q[3][1]]]; };
+  // veil = full frame minus the window holes (even-odd); holes that touch are trimmed so they never overlap
+  const OUTER = rectQ(-10, -10, 1090, 1930);
+  const polyEO = (holes) => {
+    const hs = holes.map((q) => q.map((p) => [p[0], p[1]])).sort((a, b) => a[0][0] - b[0][0]);
+    for (let i = 1; i < hs.length; i++) { const r = hs[i - 1][1][0]; if (hs[i][0][0] < r) { hs[i][0][0] = r; hs[i][3][0] = r; } }
+    const all = [OUTER, ...hs], pts = [];
+    all.forEach((q) => { q.forEach((p) => pts.push(p)); pts.push(q[0]); });
+    for (let i = all.length - 2; i >= 0; i--) pts.push(all[i][0]);
+    return 'polygon(evenodd, ' + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(', ') + ')';
+  };
+  const camCss = (el, c, blur, hblur) => {
+    css(el, 'transformOrigin', `${c.px.toFixed(1)}px ${c.py.toFixed(1)}px`);
+    css(el, 'transform', `translate(${c.tx.toFixed(2)}px,${c.ty.toFixed(2)}px) rotate(${c.r.toFixed(3)}deg) scale(${c.s.toFixed(4)})`);
+    css(el, 'filter', hblur ? 'url(#hblur)' : (blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : 'none'));
+  };
+  const ID = { px: 540, py: 960, s: 1, r: 0, tx: 0, ty: 0 };
+  const innerCam = (el, s, x = 0, y = 0, r = 0) => css(el, 'transform', `translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${r.toFixed(3)}deg) scale(${s.toFixed(4)})`);
+
+  // ------------------------------------------------------------------ captions (built once, synchronously)
+  // word: [text, spoken start (s), key?]   — times from the Whisper word list (ses.json)
+  const CAPS = {
+    A: { el: '#capA', lines: [[['FRAGMANDAKİ', -0.10, 0, 1]], [['BU', 0.54], ['DÖRT', 0.70, 1], ['ŞEY', 0.88]]], size: [140, 140] },
+    B: { el: '#capB', lines: [[["ROCKSTAR'IN", 1.52]], [['OYNANIŞ', 2.08, 1]], [['VİDEOSUNDA', 2.48], ['DA', 2.98]]], size: [112, 112, 112], exit: 3.04 },
+    C: { el: '#capC', lines: [[['OYNANIRKEN', 3.10, 1]], [['GÖSTERİLDİ.', 3.62]]], size: [140, 140] },
+    D: { el: '#capD', lines: [[['BATAKLIKTA', 5.32]], [['HAVA', 5.94], ['PERVANELİ', 6.20, 1]], [['TEKNE.', 6.64]]], size: [122, 122, 122] },
+    E: { el: '#capE', lines: [[['JET SKİ', 8.16, 1]]], size: [196], exit: 8.80 },
+    F: { el: '#capF', lines: [[['ARABA', 9.74]], [['YARIŞI.', 9.98, 1]]], size: [168, 168] },
+    G: { el: '#capG', lines: [[['AĞIRLIK', 11.46, 1]], [['ÇALIŞMAK.', 11.86]]], size: [156, 156], exit: 12.40 },
+    H: { el: '#capH', lines: [[["JASON'IN", 12.58], ['EVİNİN', 13.08]], [['ÖNÜNDE', 13.34]], [['BASKET', 13.68, 1]], [['BİLE', 13.98], ['VAR.', 14.20]]], size: [98, 98, 172, 172] },
+  };
+  const WORDS = {};
+  Object.entries(CAPS).forEach(([id, c]) => {
+    const box = $(c.el); WORDS[id] = [];
+    c.lines.forEach((ln, li) => {
+      const row = document.createElement('div'); row.className = 'line'; row.style.fontSize = c.size[li] + 'px';
+      ln.forEach(([txt, t0, key, letters]) => {
+        const w = document.createElement('span'); w.className = 'w' + (key ? ' k' : '');
+        const slab = document.createElement('span'); slab.className = 'slab'; w.appendChild(slab);
+        const i = document.createElement('span'); i.className = 'i';
+        let lts = null;
+        if (letters) { lts = [...txt].map((ch) => { const s = document.createElement('span'); s.className = 'lt'; s.textContent = ch; i.appendChild(s); return s; }); }
+        else i.textContent = txt;
+        w.appendChild(i); row.appendChild(w);
+        WORDS[id].push({ w, i, slab, t0, key, lts });
+      });
+      box.appendChild(row);
+    });
+  });
+  function caption(id, t) {
+    const c = CAPS[id], words = WORDS[id];
+    const first = words[0].t0 - 0.12;
+    const exitEnd = c.exit != null ? c.exit + 0.30 : 1e9;
+    const box = $(c.el);
+    const vis = t >= first && t < exitEnd; css(box, 'visibility', vis ? 'visible' : 'hidden'); if (!vis) return;
+    words.forEach((wd, k) => {
+      const ts = wd.t0 - 0.05;
+      const pin = prog(t, ts, 0.34), e = E('expo.out')(pin);
+      const px = c.exit != null ? E('power2.in')(prog(t, c.exit + k * 0.022, 0.16)) : 0;
+      if (wd.lts) {
+        // 135 %, not 108 %: the mask reaches 0.17em below the line box and the İ dot sits above it,
+        // so at 108 % the dot of a waiting word peeked out of its mask as a stray white dash
+        wd.lts.forEach((s, j) => { const pj = E('expo.out')(prog(t, ts + j * 0.022, 0.32)); css(s, 'transform', `translate(0px,${((1 - pj) * 135).toFixed(2)}%) rotate(${((1 - pj) * 8).toFixed(2)}deg)`); });
+        css(wd.i, 'transform', `translate(0px,${(-px * 140).toFixed(2)}%)`);
+      } else {
+        const y = (1 - e) * 135 - px * 140;
+        css(wd.i, 'transform', `translate(0px,${y.toFixed(2)}%) rotate(${((1 - e) * 6).toFixed(2)}deg) scaleX(${(1 + (1 - e) * 0.10).toFixed(4)})`);
+      }
+      if (wd.key) {
+        const ps = E('power3.out')(prog(t, ts - 0.05, 0.24));
+        const pxs = c.exit != null ? E('power2.in')(prog(t, c.exit + k * 0.022, 0.14)) : 0;
+        css(wd.slab, 'transform', `scaleX(${(ps * (1 - pxs)).toFixed(4)})`);
+        css(wd.slab, 'transformOrigin', pxs > 0 ? '100% 50%' : '0% 50%');
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------ elements
+  const L = [0, 1, 2, 3, 4, 5].map((i) => $('#L' + i));
+  const cam0 = $('#cam0'), cam1 = $('#cam1'), cam2a = $('#cam2a'), cam2b = $('#cam2b'), cam3 = $('#cam3'), cam4 = $('#cam4'), cam5 = $('#cam5');
+  const paint = $('#paint'), veil = $('#veil'), wash3 = $('#wash3'), hblurG = $('#hblurG');
+  const chips = [0, 1, 2, 3, 4, 5].map((i) => $('#chip' + i));
+  const st = [$('#st1'), $('#st2'), $('#st3'), $('#st4')];
+  const kicker = $('#kicker'), hs = [$('#hs1'), $('#hs2'), $('#hs3')], cls = [$('#cl1'), $('#cl2'), $('#cl3'), $('#cl4')];
+  const grain = $('#grain'), gx = grain.getContext('2d'), gimg = gx.createImageData(540, 960);
+
+  const chipIn = (el, t, t0) => { const p = E('power3.out')(prog(t, t0, 0.32)); css(el, 'clipPath', `inset(0px ${((1 - p) * 100).toFixed(2)}% 0px 0px)`); };
+
+  // ------------------------------------------------------------------ the numerals (transitions), one function per numeral
+  // returns { paint: [quads], win: [quads] | null, outCam, outBlur, outH }
+  function numerals(t) {
+    const R = { paint: [], win: {}, cam: {}, blur: {}, hb: {} };
+
+    // HOOK — IV drops onto the beach on "dört", opens onto the driving POV, camera dives through the I
+    if (t >= 0.58 && t < 1.53) {
+      const base = ivQ(540, 330, 1090);
+      // I drops from the top (smeared while it travels); the V closes like a compass around its bottom point
+      const dyI = (tt) => K(tt, -1100, [[0.60, 0.24, 0, 'back.out(1.5)']]);
+      const B = [540 + 99, 1090];
+      const vs = [0.60, 0.66, 0.69];
+      const aL = K(t, -52, [[vs[1], 0.26, 0, 'back.out(1.7)']]), aR = K(t, 52, [[vs[2], 0.26, 0, 'back.out(1.7)']]);
+      // each arm grows out of the vertex while it swings (nothing pops in at full length)
+      const gL = K(t, 0.2, [[vs[1], 0.20, 1, 'expo.out']]), gR = K(t, 0.2, [[vs[2], 0.20, 1, 'expo.out']]);
+      const rot = (q, a, g) => camQ(q, { px: B[0], py: B[1], s: g, r: a, tx: 0, ty: 0 });
+      const qs = [offQ(base[0], 0, dyI(t)), rot(base[1], aL, gL), rot(base[2], aR, gR)];
+      const ed = E('power3.in')(prog(t, 1.20, 0.30));
+      const c = { px: 276, py: 710, s: Math.exp(Math.log(9.8) * ed), r: 0, tx: (540 - 276) * ed, ty: (960 - 710) * ed };
+      const qc = qs.map((q) => camQ(q, c));
+      qc.forEach((q, i) => {
+        if (t < vs[i]) return;
+        const r = E('power2.inOut')(prog(t, 1.07 + 0.025 * i, 0.13));
+        if (r <= 0) R.paint.push(i === 0 ? camQ(smearV(base[0], dyI(t), dyI(t - SM)), c) : q);
+        else if (r < 1) R.paint.push(partQ(q, r, 1));
+      });
+      if (t >= 1.0667) R.win[1] = qc;
+      R.cam[0] = c; R.blur[0] = 16 * ed;
+    }
+
+    // ITEM 1 — I falls from the top (the POV tilts up, so the world moves down), opens onto the airboat
+    if (t >= 4.2 && t < 4.75) {
+      const q0 = strokeQ(540, 300, 1120, 136), dy = (tt) => K(tt, -1300, [[4.32, 0.20, 0, 'back.out(1.3)']]);
+      const q = offQ(q0, 0, dy(t));
+      const r = E('power2.inOut')(prog(t, 4.53, 0.09));
+      if (r <= 0) R.paint.push(smearV(q0, dy(t), dy(t - SM)));
+      else if (r < 1) R.paint.push(partQ(q, r, 1));
+      const w = E('power2.inOut')(prog(t, 4.615, 0.12));
+      if (t >= 4.5333) R.win[2] = [lerpQ(q, rectQ(-30, -30, 1110, 1950), w)];
+      const e1 = E('power2.in')(prog(t, 4.48, 0.255));
+      R.cam[1] = { px: 540, py: 960, s: 1 + 0.08 * e1, r: 0, tx: 0, ty: 340 * e1 }; R.blur[1] = 10 * e1;
+    }
+
+    // ITEM 2 — the helicopter shot whips out left, II rides in from the right, the strokes widen into the jet ski
+    if (t >= 6.9 && t < 7.5) {
+      const xs = [452, 628];
+      const dx = (tt, i) => K(tt, 1200, [[6.98 + 0.03 * i, 0.25, 0, 'expo.out']]);
+      const qs = xs.map((x, i) => offQ(strokeQ(x, 300, 1120, 136), dx(t, i), 0));
+      qs.forEach((q, i) => {
+        const r = E('power2.inOut')(prog(t, 7.22 + 0.02 * i, 0.09));
+        if (r <= 0) R.paint.push(smearH(strokeQ(xs[i], 300, 1120, 136), dx(t, i), dx(t - SM, i)));
+        else if (r < 1) R.paint.push(partQ(q, r, 1));
+      });
+      const w = E('power3.inOut')(prog(t, 7.29, 0.17));
+      const tg = [rectQ(-30, -30, 545, 1950), rectQ(535, -30, 1110, 1950)];
+      const wins = qs.map((q, i) => lerpQ(q, tg[i], w));
+      // until the helicopter shot runs out the jet ski exists only inside the strokes; after that it is
+      // full frame under a dark veil that has the strokes as holes and lifts while they widen
+      if (t >= 7.2 && t < 7.2333) R.win[3] = wins;
+      if (t >= 7.2333) R.veil = { color: '#140A1F', op: 0.82 * (1 - E('power2.in')(prog(t, 7.2333, 0.24))), holes: wins };
+      const ew = E('power3.in')(prog(t, 6.96, 0.26));
+      R.cam[2] = { px: 540, py: 960, s: 1, r: 0, tx: -1150 * ew, ty: 0 }; R.hb[2] = 44 * E('power2.in')(prog(t, 6.96, 0.26));
+    }
+
+    // ITEM 3 — the spray whites the lens, III shoots up out of the white, the strokes widen into the drift
+    if (t >= 8.75 && t < 9.30) {
+      const xs = [364, 540, 716];
+      const dy = (tt, i) => K(tt, 1900, [[8.78 + 0.03 * i, 0.20, 0, 'expo.out']]);
+      const qs = xs.map((x, i) => offQ(strokeQ(x, 300, 1120, 136), 0, dy(t, i)));
+      qs.forEach((q, i) => {
+        const r = E('power2.inOut')(prog(t, 9.0 + 0.02 * i, 0.09));
+        if (r <= 0) R.paint.push(smearV(strokeQ(xs[i], 300, 1120, 136), dy(t, i), dy(t - SM, i)));
+        else if (r < 1) R.paint.push(partQ(q, 0, 1 - r));
+      });
+      const w = E('power3.inOut')(prog(t, 9.10, 0.17));
+      const tg = [rectQ(-30, -30, 365, 1950), rectQ(355, -30, 725, 1950), rectQ(715, -30, 1110, 1950)];
+      const wins = qs.map((q, i) => lerpQ(q, tg[i], w));
+      // the jet ski ends in white spray; the drift then sits full frame under a spray-white veil with III cut out of it
+      if (t >= 8.9 && t < 8.9667) R.win[4] = wins;
+      if (t >= 8.9667) R.veil = { color: '#FFF4EA', op: 0.62 * (1 - E('power1.out')(prog(t, 8.9667, 0.26))), holes: wins };
+    }
+
+    // ITEM 4 — IV chases the car in from the left, the camera rolls into the V's left arm and dives through
+    if (t >= 10.3 && t < 10.97) {
+      const base = ivQ(540, 300, 1120);
+      // the V travels as one piece (its arms must not cross) and leads; the I trails one frame behind, so nothing overlaps
+      const dx = (tt, i) => K(tt, -1250, [[10.40 + (i ? 0 : 0.035), 0.22, 0, 'expo.out']]);
+      const qs = base.map((q, i) => offQ(q, dx(t, i), 0));
+      const ed = E('power3.in')(prog(t, 10.70, 0.265));
+      const c = { px: 556.5, py: 710, s: Math.exp(Math.log(10.5) * ed), r: 11.38 * ed, tx: (540 - 556.5) * ed, ty: (960 - 710) * ed };
+      const qc = qs.map((q) => camQ(q, c));
+      qc.forEach((q, i) => {
+        const r = E('power2.inOut')(prog(t, 10.67 + 0.02 * i, 0.10));
+        if (r <= 0) R.paint.push(camQ(smearH(base[i], dx(t, i), dx(t - SM, i)), c));
+        else if (r < 1) R.paint.push(partQ(q, r, 1));
+      });
+      if (t >= 10.6667) R.win[5] = qc;
+      R.cam[4] = c; R.blur[4] = 14 * ed;
+    }
+    return R;
+  }
+
+  // ------------------------------------------------------------------ HUD counter (tally that grows, then IV -> VI on the last word)
+  function hud(t) {
+    // kicker: already moving on frame 0
+    const pk = E('expo.out')(prog(t, -0.25, 0.7));
+    css(kicker, 'transform', `translate(${((1 - pk) * -60).toFixed(2)}px,0px)`); op(kicker, 0.35 + 0.65 * pk);
+    css(kicker, 'clipPath', `inset(0px ${((1 - pk) * 60).toFixed(2)}% 0px 0px)`);
+
+    const x0 = 0;
+    // stroke 1: drops in with item 1
+    const a1 = K(t, -260, [[4.36, 0.24, 0, 'back.out(1.6)']]);
+    // stroke 2: slides in from the right with item 2
+    const a2 = K(t, 420, [[7.06, 0.24, 0, 'expo.out']]);
+    // stroke 3: rises from below with item 3
+    const a3 = K(t, 300, [[8.86, 0.22, 0, 'expo.out']]);
+    // III -> IV: strokes 2 and 3 lean into a V; I -> after the V on the last word (VI)
+    const v = E('back.out(1.4)')(prog(t, 10.56, 0.26));
+    const f = E('power3.inOut')(prog(t, 14.12, 0.24));
+    const th = 14;
+    const x1 = lerp(x0, x0 + 68.8, f), y1 = a1 - Math.sin(Math.PI * f) * 46;
+    const x2 = lerp(x0 + 28, x0 + 43.4, v) - 26 * f, r2 = -th * v;
+    const x3 = lerp(x0 + 56, x0 + 43.4, v) - 26 * f, r3 = th * v;
+    css(hs[0], 'transform', `translate(${x1.toFixed(2)}px,${y1.toFixed(2)}px)`); op(hs[0], t >= 4.36 ? 1 : 0);
+    css(hs[1], 'transform', `translate(${(x2 + a2).toFixed(2)}px,0px) rotate(${r2.toFixed(2)}deg)`); op(hs[1], t >= 7.06 ? 1 : 0);
+    css(hs[2], 'transform', `translate(${x3.toFixed(2)}px,${a3.toFixed(2)}px) rotate(${r3.toFixed(2)}deg)`); op(hs[2], t >= 8.86 ? 1 : 0);
+    // label rolls 1/4 -> 2/4 -> 3/4 -> 4/4
+    const steps = [4.40, 7.10, 8.90, 10.58];
+    cls.forEach((el, i) => {
+      const pin = E('expo.out')(prog(t, steps[i], 0.30));
+      const pout = i < 3 ? E('power2.in')(prog(t, steps[i + 1] - 0.06, 0.14)) : 0;
+      css(el, 'transform', `translate(0px,${((1 - pin) * 110 - pout * 110).toFixed(2)}%)`);
+      css(el, 'position', 'absolute'); css(el, 'left', '0px'); css(el, 'top', '0px');
+      op(el, t >= steps[i] - 0.01 ? 1 : 0);
+    });
+  }
+
+  // ------------------------------------------------------------------ grain (seeded, new pattern every 2 frames)
+  function drawGrain(t) {
+    const f = Math.floor(t * FPS / 2), rnd = mulberry(f * 7919 + 13), d = gimg.data;
+    for (let i = 0; i < d.length; i += 4) { const v = 128 + (rnd() - 0.5) * 150; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    gx.putImageData(gimg, 0, 0);
+  }
+
+  // ------------------------------------------------------------------ frame
+  function frame(t) {
+    const N = numerals(t);
+
+    // which layers exist at t
+    const on = [t < 1.533, t >= 1.0667 && t < 4.767, t >= 4.5333 && t < 7.233, t >= 7.2 && t < 9.30, t >= 8.9 && t < 11.0, t >= 10.6667];
+    // a layer below a fully open window is hidden (keeps capture cheap)
+    if (t >= 1.52) on[0] = false;
+    if (t >= 4.735) on[1] = false;
+    if (t >= 7.22) on[2] = false;
+    if (t >= 8.9667) on[3] = false;
+    if (t >= 10.97) on[4] = false;
+    L.forEach((el, i) => show(el, on[i]));
+    L.forEach((el, i) => {
+      css(el, 'zIndex', String(i + 1));
+      css(el, 'clipPath', N.win[i] ? poly(N.win[i]) : 'none');
+      const c = N.cam[i] || ID;
+      camCss(el, c, N.blur[i] || 0, (N.hb[i] || 0) > 0.05);
+    });
+    const hb = N.hb[2] || 0; hblurG.setAttribute('stdDeviation', `${hb.toFixed(2)} 0`);
+    css(paint, 'clipPath', poly(N.paint));
+    if (N.veil && N.veil.op > 0.003) { show(veil, true); css(veil, 'background', N.veil.color); op(veil, N.veil.op); css(veil, 'clipPath', polyEO(N.veil.holes)); }
+    else show(veil, false);
+
+    // ---- inner cameras (eased push-ins, punch-ins, settles)
+    innerCam(cam0, 1.07 + 0.08 * E('sine.inOut')(prog(t, 0, 1.5)), 0, -18 * prog(t, 0, 1.5));
+    innerCam(cam1, K(t, 1.24, [[1.20, 0.50, 1.0, 'expo.out'], [1.70, 2.9, 1.06, 'sine.inOut']]));
+    // airboat: settle, slow push, punch-in on "pervaneli", then the helicopter shot carries the zoom on
+    innerCam(cam2a, K(t, 1.14, [[4.62, 0.55, 1.0, 'expo.out'], [5.20, 0.65, 1.05, 'sine.inOut'], [5.86, 0.46, 1.52, 'power3.inOut']]), K(t, 0, [[5.86, 0.46, 40, 'power3.inOut']]));
+    show(cam2a, t < 6.3333); show(cam2b, t >= 6.3333);
+    innerCam(cam2b, K(t, 1.34, [[6.3333, 0.5, 1.06, 'expo.out']]));
+    innerCam(cam3, K(t, 1.14, [[7.30, 0.55, 1.0, 'expo.out'], [7.85, 1.0, 1.07, 'sine.inOut']]));
+    op(wash3, K(t, 0, [[8.80, 0.15, 0.82, 'power1.in']]));
+    innerCam(cam4, K(t, 1.12, [[9.10, 0.55, 1.0, 'expo.out'], [9.65, 1.3, 1.05, 'sine.inOut']]), K(t, 0, [[9.65, 1.3, -26, 'sine.inOut']]));
+    // the one hero hit: a short decaying shake when the dive lands
+    const ts = t - 10.965, shk = ts > 0 ? Math.exp(-ts / 0.07) : 0;
+    innerCam(cam5, K(t, 1.32, [[10.70, 0.60, 1.0, 'expo.out'], [11.30, 3.13, 1.10, 'sine.inOut']]), 11 * shk * Math.sin(ts * 95), 7 * shk * Math.cos(ts * 120), K(t, -8, [[10.70, 0.60, 0, 'expo.out']]));
+
+    // ---- captions
+    Object.keys(CAPS).forEach((id) => caption(id, t));
+
+    // ---- chips and stamp
+    chipIn(chips[0], t, 0.18); chipIn(chips[1], t, 1.58); chipIn(chips[2], t, 4.86); chipIn(chips[3], t, 7.50); chipIn(chips[4], t, 9.28); chipIn(chips[5], t, 11.02);
+    const sp = [2.00, 2.12, 2.20, 2.27];
+    st.forEach((el, i) => { const p = E(i === 0 ? 'expo.out' : 'power3.out')(prog(t, sp[i], 0.34)); css(el, 'clipPath', `inset(0px ${((1 - p) * 100).toFixed(2)}% 0px 0px)`); css(el, 'transform', `translate(${((1 - p) * -40).toFixed(2)}px,0px)`); });
+
+    hud(t);
+    drawGrain(t);
+  }
+
+  // ------------------------------------------------------------------ timeline: one paused driver tween
+  const tl = gsap.timeline({ paused: true });
+  const drv = { t: 0 };
+  tl.fromTo(drv, { t: 0 }, { t: END, duration: END, ease: 'none', onUpdate: () => frame(drv.t) }, 0);
+  frame(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines['wow'] = tl;
+  window.__frame = frame;
+})();
+</script>
+</body>
+</html>

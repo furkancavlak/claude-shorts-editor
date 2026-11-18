@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080, height=1920">
+<title>Ölmesine 8.65</title>
+<style>
+  @font-face { font-family: "OswaldL"; src: url("fonts/Oswald-Bold.ttf") format("truetype"); font-weight: 700; }
+  @font-face { font-family: "OswaldL"; src: url("fonts/Oswald-SemiBold.ttf") format("truetype"); font-weight: 600; }
+  @font-face { font-family: "OswaldL"; src: url("fonts/Oswald-Medium.ttf") format("truetype"); font-weight: 500; }
+  :root { --ink: #0B0B0D; --paper: #F4F1EA; --red: #F2322B; }
+  html, body { margin: 0; padding: 0; background: var(--ink); }
+  #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--ink);
+          font-family: "OswaldL", sans-serif; color: var(--paper); }
+  #glow { position: absolute; inset: 0; opacity: 0;
+          background: radial-gradient(ellipse 90% 55% at 50% 100%, rgba(242,50,43,0.30), rgba(242,50,43,0) 70%),
+                      radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255,255,255,0.05), rgba(255,255,255,0) 70%); }
+
+  /* a window = rect + its own camera into a video (all driven by CSS vars) */
+  .card { position: absolute; overflow: hidden;
+          left: calc(var(--x) * 1px); top: calc(var(--y) * 1px);
+          width: calc(var(--w) * 1px); height: calc(var(--h) * 1px);
+          border-radius: calc(var(--r) * 1px);
+          box-shadow: 0 26px 80px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.07);
+          transform-origin: 50% 50%; }
+  .shake { position: absolute; inset: 0; }
+  .cam { position: absolute; left: 0; top: 0; transform-origin: 0 0;
+         transform: translate(calc(var(--w) * 0.5px - var(--cx) * var(--z) * 1px),
+                              calc(var(--h) * 0.5px - var(--cy) * var(--z) * 1px)) scale(var(--z)); }
+  #vGame { display: block; width: 1920px; height: 1080px; }
+  #vFace { display: block; width: 1772px; height: 992px; }
+  #gameDim { position: absolute; inset: 0; background: #07070a; opacity: 0; }
+  #vig { position: absolute; inset: 0; opacity: 0;
+         background: radial-gradient(ellipse 62% 48% at 50% 46%, rgba(0,0,0,0) 40%, rgba(5,5,8,0.72) 100%); }
+
+  /* countdown pill */
+  #cd { position: absolute; left: 0; top: 0; height: 84px; padding: 0 28px 0 24px; border-radius: 42px;
+        background: var(--red); color: var(--paper); display: flex; align-items: center; gap: 14px;
+        box-shadow: 0 14px 44px rgba(0,0,0,0.45); white-space: nowrap; will-change: transform; }
+  #cdDot { width: 14px; height: 14px; border-radius: 50%; background: currentColor; }
+  #cd .lbl { font-weight: 600; font-size: 30px; letter-spacing: 0.1em; line-height: 1; padding-top: 2px; }
+  #cd .dig { font-weight: 700; font-size: 56px; line-height: 1; display: flex; }
+  #cd .dig span { display: inline-block; width: 0.55em; text-align: center; }
+  #cd .dig .pt { width: 0.24em; }
+
+  /* type */
+  .cap { position: absolute; left: 90px; width: 860px; }
+  .line { position: relative; white-space: nowrap; }
+  .m { display: inline-block; overflow: hidden; padding: 0.2em 0.04em 0.06em 0; margin: -0.2em -0.04em -0.06em 0; }
+  .w { display: inline-block; will-change: transform; }
+  .shadow { text-shadow: 0 6px 26px rgba(0,0,0,0.55), 0 2px 3px rgba(0,0,0,0.45); }
+  #c1 { top: 742px; }
+  #c1 .line { font-weight: 700; font-size: 120px; line-height: 0.95; }
+  #c2 { top: 742px; }
+  #c2 .l1 { font-weight: 600; font-size: 60px; letter-spacing: 0.08em; line-height: 1.05; color: rgba(244,241,234,0.88); }
+  #c2 .l2 { font-weight: 700; font-size: 116px; line-height: 0.95; }
+  #c3 { top: 1040px; }
+  #kor { font-weight: 700; font-size: 300px; line-height: 0.86; display: inline-block; transform-origin: 0% 60%; }
+  #c3 .l2 { font-weight: 700; font-size: 170px; line-height: 0.92; margin-top: 4px; }
+  #c4 { top: 1000px; }
+  #c4 .l1 { font-weight: 600; font-size: 84px; letter-spacing: 0.04em; line-height: 1.0; color: rgba(244,241,234,0.9); }
+  #c4 .l2 { font-weight: 700; font-size: 200px; line-height: 0.92; margin-top: 72px; }
+  #c4 .l3 { font-weight: 700; font-size: 200px; line-height: 0.92; color: var(--red); margin-top: 6px; }
+  /* the bar that covers the "eyes" (the dieresis dots) of GÖZÜNÜ: dots sit at -0.130em..+0.018em of the line box,
+     cap tops at +0.102em, so the bar (-0.160em..+0.040em) hides only the dots */
+  #bar { position: absolute; left: -0.02em; width: 3.42em; top: -0.160em; height: 0.200em;
+         background: var(--red); border-radius: 0.04em; box-shadow: 0 0.03em 0.08em rgba(0,0,0,0.45);
+         transform-origin: 100% 50%; }
+
+  #flashR { position: absolute; inset: 0; background: #ff2a20; opacity: 0; mix-blend-mode: screen; }
+  #flashW { position: absolute; inset: 0; background: #ffffff; opacity: 0; }
+  #grain { position: absolute; inset: -40px; opacity: 0.05; mix-blend-mode: overlay;
+           background-image: url("kaynak/grain.png"); background-size: 512px 512px; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="15.866" data-width="1080" data-height="1920" data-fps="30">
+  <div id="glow"></div>
+
+  <div id="game" class="card" style="--x:0; --y:680; --w:1080; --h:1290; --r:40; --cx:960; --cy:572; --z:1.42;">
+    <div id="gameShake" class="shake">
+      <div class="cam">
+        <video id="vGame" src="kaynak/oyun.mp4" data-start="0" data-duration="15.866" data-media-start="0" data-track-index="0" muted playsinline></video>
+      </div>
+    </div>
+    <div id="vig"></div>
+    <div id="gameDim"></div>
+  </div>
+
+  <div id="face" class="card" style="--x:40; --y:110; --w:1000; --h:530; --r:40; --cx:886; --cy:496; --z:0.5643;">
+    <div class="cam">
+      <video id="vFace" src="kaynak/yuz.mp4" data-start="0" data-duration="15.866" data-media-start="0" data-track-index="1" muted playsinline></video>
+    </div>
+  </div>
+
+  <div id="c1" class="cap shadow">
+    <div class="line"><span class="m"><span class="w">FLAŞ</span></span> <span class="m"><span class="w">ATICAM</span></span></div>
+  </div>
+
+  <div id="c2" class="cap shadow">
+    <div class="line l1"><span class="m"><span class="w" id="w-zaten">ZATEN</span></span></div>
+    <div class="line l2"><span class="m"><span class="w" id="w-girem">GİREMİYORUM</span></span> <span class="m"><span class="w" id="w-ki">Kİ</span></span></div>
+  </div>
+
+  <div id="c3" class="cap shadow">
+    <div class="line"><span id="kor">KÖR</span></div>
+    <div class="line l2"><span class="m"><span class="w" id="w-vur">VURUYOR</span></span></div>
+  </div>
+
+  <div id="c4" class="cap">
+    <div class="line l1"><span class="m"><span class="w" id="w-eli">ELİYLE</span></span></div>
+    <div class="line l2"><span class="m"><span class="w" id="w-goz">GÖZÜNÜ</span></span><div id="bar"></div></div>
+    <div class="line l3"><span class="m"><span class="w" id="w-kap">KAPATIYO</span></span></div>
+  </div>
+
+  <div id="cd">
+    <span id="cdDot"></span>
+    <span class="lbl">ÖLMESİNE</span>
+    <span class="dig"><span id="d0">8</span><span class="pt">.</span><span id="d1">6</span><span id="d2">5</span></span>
+  </div>
+
+  <div id="flashR"></div>
+  <div id="flashW"></div>
+  <div id="grain"></div>
+
+  <script src="gsap.min.js"></script>
+  <script src="beats.js"></script>
+  <script>
+  (function () {
+    const B = window.BEATS;
+    const D = 15.866;
+    const tl = gsap.timeline({ paused: true });
+    const ft = (sel, from, to, dur, ease, at) =>
+      tl.fromTo(sel, from, Object.assign({}, to, { duration: dur, ease: ease, immediateRender: false }), at);
+    const st = (sel, vars, at) => tl.set(sel, vars, at);
+    const ex = (o, p) => Object.assign({}, o, p);
+
+    // ---------- window states (rect in canvas px, camera in video px) ----------
+    const FACE_A  = { '--x': 40, '--y': 110, '--w': 1000, '--h': 530, '--r': 40, '--cx': 886, '--cy': 496, '--z': 0.5643 };
+    // during the setup the seam slowly rises: the game is taking over before the peek takes it all
+    const FACE_A2 = ex(FACE_A, { '--h': 460, '--cx': 880, '--cy': 520, '--z': 0.585 });
+    const FACE_B  = { '--x': 40, '--y': 110, '--w': 360, '--h': 191, '--r': 26, '--cx': 880, '--cy': 496, '--z': 0.2106 };
+    const FACE_C  = { '--x': 40, '--y': 150, '--w': 1000, '--h': 800, '--r': 40, '--cx': 740, '--cy': 496, '--z': 0.82 };
+    const FACE_C2 = ex(FACE_C, { '--cx': 745, '--z': 0.85 });
+    const FACE_D  = { '--x': 40, '--y': 270, '--w': 1000, '--h': 671, '--r': 40, '--cx': 820, '--cy': 496, '--z': 0.68 };
+    const FACE_D2 = ex(FACE_D, { '--cx': 840, '--cy': 474, '--z': 0.735 });
+
+    const GAME_A0 = { '--x': 0, '--y': 680, '--w': 1080, '--h': 1290, '--r': 40, '--cx': 960, '--cy': 572, '--z': 1.42 };
+    const GAME_A  = ex(GAME_A0, { '--z': 1.27 });
+    const GAME_A2 = ex(GAME_A0, { '--y': 610, '--h': 1360, '--z': 1.34, '--cy': 575 });
+    // full-bleed game framed below the scoreboard (source y >= 70)
+    const GAME_B  = { '--x': 0, '--y': 0, '--w': 1080, '--h': 1920, '--r': 0, '--cx': 960, '--cy': 575, '--z': 1.9 };
+    const GAME_B2 = ex(GAME_B, { '--cx': 958, '--cy': 528, '--z': 2.55 });
+    const GAME_B3 = ex(GAME_B, { '--cx': 970, '--cy': 512, '--z': 2.75 });
+    // band camera sits on the death cam, below the scoreboard (source y >= 126)
+    const GAME_C  = { '--x': 0, '--y': 1000, '--w': 1080, '--h': 1100, '--r': 40, '--cx': 880, '--cy': 470, '--z': 1.6 };
+    const GAME_D  = ex(GAME_C, { '--y': 1920 });
+
+    const tAB = 6.70, tBC = 9.36, tCD = 11.95;
+    const PILL_S = 1.12, PILL_SLOW = 1.28;
+
+    // a word is hidden far enough below/above its mask that no accent or cedilla can peek through
+    const HIDE = { yPercent: 150, opacity: 0 };
+    const inW = (sel, at, dur, ease, stagger) => {
+      st(sel, { opacity: 1 }, at);
+      ft(sel, { yPercent: 150 }, { yPercent: 0, stagger: stagger || 0 }, dur, ease, at);
+    };
+    const outW = (sel, at, dur, stagger) => {
+      ft(sel, { yPercent: 0 }, { yPercent: -170, stagger: stagger || 0 }, dur, 'power2.in', at);
+      st(sel, { opacity: 0 }, at + dur + (stagger || 0) * 3 + 0.02);
+    };
+
+    // ---------- initial state ----------
+    st('#face', FACE_A, 0);
+    st('#game', GAME_A0, 0);
+    st('#cd', { xPercent: -50, yPercent: -50, x: 540, y: 1150, scale: 2.6, filter: 'blur(3px)', autoAlpha: 1,
+                backgroundColor: '#F2322B', color: '#F4F1EA' }, 0);
+    st(['#c1 .w', '#c2 .w', '#c3 .w', '#c4 .w'], HIDE, 0);
+    st('#kor', { autoAlpha: 0 }, 0);
+    st('#c3', { y: 0, autoAlpha: 1 }, 0);
+    st('#bar', { scaleX: 0 }, 0);
+    st(['#flashR', '#flashW', '#gameDim', '#glow', '#vig'], { opacity: 0 }, 0);
+
+    // ---------- 0.00 hook: everything already moving ----------
+    ft('#game', GAME_A0, GAME_A, 1.3, 'power2.out', 0);
+    ft('#face', { scale: 0.93, y: -26 }, { scale: 1, y: 0 }, 0.8, 'expo.out', 0);
+    ft('#cd', { scale: 2.6, filter: 'blur(3px)' }, { scale: 2.3, filter: 'blur(0px)' }, 0.5, 'expo.out', 0);
+    // the countdown docks on the seam between the two windows
+    ft('#cd', { x: 540, y: 1150, scale: 2.3 }, { x: 760, y: 660, scale: PILL_S }, 0.55, 'expo.inOut', 1.0);
+    // slow living drift in the setup
+    ft('#game', GAME_A, GAME_A2, tAB - 1.3, 'sine.inOut', 1.3);
+    ft('#face', FACE_A, FACE_A2, tAB - 0.8, 'sine.inOut', 0.8);
+    ft('#cd', { y: 660 }, { y: 590 }, tAB - 1.55, 'sine.inOut', 1.55);
+
+    // ---------- his words in the setup ----------
+    inW('#c1 .w', B.aticam - 0.04, 0.5, 'power3.out', 0.09);
+    outW('#c1 .w', 3.30, 0.3, 0.05);
+    inW('#w-zaten', B.zaten - 0.04, 0.45, 'power3.out');
+    inW('#w-girem', B.giremiyorum - 0.04, 0.5, 'expo.out');
+    inW('#w-ki', B.ki - 0.04, 0.4, 'power3.out');
+    outW('#c2 .w', tAB - 0.30, 0.3, 0.04);
+
+    // ---------- the peek: one gesture, game takes the screen, face shrinks to a corner ----------
+    ft('#game', GAME_A2, GAME_B, 0.7, 'power3.inOut', tAB);
+    ft('#face', FACE_A2, FACE_B, 0.7, 'power3.inOut', tAB);
+    ft('#cd', { x: 760, y: 590 }, { x: 626, y: 205 }, 0.7, 'power3.inOut', tAB);
+    // push in to the man in the red ring, then keep tracking him through the slow motion
+    ft('#game', GAME_B, GAME_B2, 0.87, 'power2.inOut', tAB + 0.7);
+    ft('#game', GAME_B2, GAME_B3, B.death - (tAB + 1.57), 'sine.inOut', tAB + 1.57);
+    ft('#cd', { scale: PILL_S }, { scale: PILL_SLOW }, 0.5, 'power2.out', B.slowIn);
+    // time slows: the edges of the game close in, released by the death frame
+    ft('#vig', { opacity: 0 }, { opacity: 1 }, 0.45, 'power2.out', B.slowIn);
+    ft('#vig', { opacity: 1 }, { opacity: 0 }, 0.3, 'power2.out', B.death + 0.02);
+
+    // ---------- countdown digits, frame by frame from the real game clock ----------
+    let last = '';
+    for (let f = 0; f < B.countdown.length; f++) {
+      const t = f / 30;
+      const v = (t >= B.death) ? 0 : B.countdown[f];
+      const s = v.toFixed(2);
+      if (s === last) continue;
+      last = s;
+      const at = Math.max(0, t - 0.001);
+      st('#d0', { textContent: s[0] }, at);
+      st('#d1', { textContent: s[2] }, at);
+      st('#d2', { textContent: s[3] }, at);
+      if (t >= B.death) break;
+    }
+    ft('#cdDot', { opacity: 1 }, { opacity: 0.25, repeat: Math.max(0, Math.floor(B.death / 0.25) - 1), yoyo: true }, 0.25, 'steps(1)', 0);
+
+    // ---------- death frame: the only shake in the clip ----------
+    st('#cd', { backgroundColor: '#F4F1EA', color: '#F2322B' }, B.death);
+    ft('#cd', { scale: 1.55 }, { scale: PILL_SLOW }, 0.35, 'power3.out', B.death);
+    st('#flashR', { opacity: 0.34 }, B.death);
+    ft('#flashR', { opacity: 0.34 }, { opacity: 0 }, 0.4, 'power2.out', B.death + 0.001);
+    tl.to('#gameShake', { keyframes: [
+      { x: 18, y: -11, duration: 0.035 }, { x: -14, y: 9, duration: 0.045 }, { x: 10, y: -6, duration: 0.055 },
+      { x: -6, y: 4, duration: 0.065 }, { x: 3, y: -2, duration: 0.075 }, { x: 0, y: 0, duration: 0.09 } ],
+      ease: 'none' }, B.death);
+
+    // ---------- reaction: the corner face grows into the hero, the game sinks to a band ----------
+    ft('#cd', { y: 205, scale: PILL_SLOW, autoAlpha: 1 }, { y: 140, scale: 0.9, autoAlpha: 0 }, 0.28, 'power2.in', tBC);
+    ft('#face', FACE_B, FACE_C, 0.62, 'power3.inOut', tBC);
+    ft('#game', GAME_B3, GAME_C, 0.62, 'power3.inOut', tBC);
+    ft('#gameDim', { opacity: 0 }, { opacity: 0.55 }, 0.62, 'power2.inOut', tBC);
+    ft('#glow', { opacity: 0 }, { opacity: 1 }, 0.8, 'power2.out', tBC);
+    ft('#face', FACE_C, FACE_C2, tCD - (tBC + 0.62), 'sine.inOut', tBC + 0.62);
+
+    // "KÖR" arrives like a flashbang: blown out white, then sharp
+    st('#kor', { autoAlpha: 1 }, B.kor1 - 0.03);
+    ft('#kor', { scale: 1.22, filter: 'blur(16px) brightness(2.4)' }, { scale: 1, filter: 'blur(0px) brightness(1)' }, 0.6, 'expo.out', B.kor1 - 0.03);
+    st('#flashW', { opacity: 0.55 }, B.kor1 - 0.02);
+    ft('#flashW', { opacity: 0.55 }, { opacity: 0 }, 0.45, 'power2.out', B.kor1 - 0.019);
+    inW('#w-vur', B.vuruyor - 0.04, 0.45, 'power3.out');
+    // "LAN!" (his loudest syllable): the face punches in
+    ft('#face', { scale: 1 }, { scale: 1.035 }, 0.07, 'power2.out', B.lan1 - 0.02);
+    ft('#face', { scale: 1.035 }, { scale: 1 }, 0.5, 'power3.out', B.lan1 + 0.05);
+
+    // ---------- imitation: game band and his first line sink away together, the face widens for the arm ----------
+    ft('#game', GAME_C, GAME_D, 0.62, 'power3.inOut', tCD);
+    ft('#face', FACE_C2, FACE_D, 0.62, 'power3.inOut', tCD);
+    ft('#face', FACE_D, FACE_D2, B.duration - (tCD + 0.62), 'sine.inOut', tCD + 0.62);
+
+    // his first line holds over the dark until the second one comes, then lifts away the way the new words rise
+    ft('#c3', { y: 0, autoAlpha: 1, filter: 'blur(0px)' }, { y: -110, autoAlpha: 0, filter: 'blur(10px)' }, 0.32, 'power2.in', B.eliyle - 0.36);
+    inW('#w-eli', B.eliyle - 0.04, 0.45, 'power3.out');
+    inW('#w-goz', B.gozunu - 0.04, 0.55, 'expo.out');
+    inW('#w-kap', B.kapatiyo - 0.04, 0.45, 'power3.out');
+    // ...and the red bar slides over the "eyes" of GÖZÜNÜ, the way his arm went over his
+    ft('#bar', { scaleX: 0 }, { scaleX: 1 }, 0.3, 'power3.out', B.kapatiyo + 0.02);
+
+    // grain (stepped, deterministic)
+    ft('#grain', { backgroundPosition: '0px 0px' }, { backgroundPosition: (37 * 238) + 'px ' + (61 * 238) + 'px' }, D, 'steps(238)', 0);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines['main'] = tl;
+  })();
+  </script>
+</div>
+</body>
+</html>
