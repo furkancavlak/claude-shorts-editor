@@ -54,7 +54,7 @@ def gri_kareler(path, w=96):
     b = bilgi(path)['video']
     h = int(round(b['h'] * w / b['w'] / 2)) * 2
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-map', '0:v:0', '-vf', 'scale=%d:%d,format=gray' % (w, h),
-                          '-vsync', '0', '-f', 'rawvideo', '-'], capture_output=True).stdout
+                          '-fps_mode', 'passthrough', '-f', 'rawvideo', '-'], capture_output=True).stdout
     return np.frombuffer(raw, dtype=np.uint8).reshape(-1, h, w).astype(np.float32)
 
 
@@ -276,7 +276,7 @@ def serit(path, an, once, sonra, cikti, gen=300, kirp=None, esit=None, kareler=N
           % (sel, 'crop=%s,' % kirp if kirp else '', gen, ETIKET_FONT, v['fps'], max(14, gen // 16), cols,
              (len(fr) + cols - 1) // cols))
     os.makedirs(os.path.dirname(os.path.abspath(cikti)), exist_ok=True)
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', path, '-vf', vf, '-vsync', '0', '-frames:v', '1', cikti], check=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', path, '-vf', vf, '-fps_mode', 'passthrough', '-frames:v', '1', cikti], check=True)
     print('SERIT   %s  kareler %s (%.3f-%.3f sn)'
           % (cikti, fr, fr[0] / v['fps'], fr[-1] / v['fps']))
 
@@ -290,7 +290,7 @@ def alan(path, kareler, cikti, alt=0.18, sag=0.11, ust=0.06, gen=360):
           % (sel, int(H * (1 - alt)), W, int(H * alt) + 1, int(W * (1 - sag)), int(W * sag) + 1, H, W, int(H * ust) + 1,
              gen, len(kareler)))
     os.makedirs(os.path.dirname(os.path.abspath(cikti)), exist_ok=True)
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', path, '-vf', vf, '-vsync', '0', '-frames:v', '1', cikti], check=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', path, '-vf', vf, '-fps_mode', 'passthrough', '-frames:v', '1', cikti], check=True)
     print('ALAN    %s  kareler %s; kirmizi = alt %%%d ve sag %%%d (Shorts dugmeleri/yazisi), turuncu = ust %%%d. '
           'Okunmasi gereken yazi kirmizida olmamali.' % (cikti, kareler, alt * 100, sag * 100, ust * 100))
 

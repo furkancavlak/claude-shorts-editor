@@ -81,7 +81,7 @@ def main():
         ss = max(0.0, t0 - V0 - 0.5 / SF)            # -ss counts from the file's first frame
         out = '%s_%02d%s' % (root, n, ext)
         cmd = ['ffmpeg', '-v', 'error', '-ss', '%.6f' % ss, '-t', '%.6f' % ((sf[-1] - sf[0] + 1.5) / SF), '-copyts',
-               '-i', a.video, '-map', '0:v:0', '-vf', ','.join(vf), '-vsync', '0', '-frames:v', '1', '-q:v', '3', out]
+               '-i', a.video, '-map', '0:v:0', '-vf', ','.join(vf), '-fps_mode', 'passthrough', '-frames:v', '1', '-q:v', '3', out]
         r = subprocess.run(cmd[:1] + ['-y'] + cmd[1:], capture_output=True, text=True)
         if r.returncode:
             sys.exit(r.stderr[-1500:])

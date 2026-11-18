@@ -233,7 +233,7 @@ def yaz_kes(a, interp, vf, seek, enc_opts, Ks, J0, sel_t, SF, W, H, FPS, crop, N
         # for one ffmpeg expression), crop on the output timeline
         dec = subprocess.Popen(['ffmpeg', '-v', 'error'] + seek + ['-i', a.video, '-map', '0:v:0', '-vf',
                                "select='between(floor(%s),%d,%d)',setpts=N/%g/TB" % (sel_t, Ks[0] - J0, Ks[-1] - J0, SF),
-                               '-vsync', '0',
+                               '-fps_mode', 'passthrough',
                                '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-'], stdout=subprocess.PIPE)
         enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-s', '%dx%d' % (W, H),
                                 '-r', '%g' % FPS, '-i', '-', '-vf', crop] + enc_opts, stdin=subprocess.PIPE)

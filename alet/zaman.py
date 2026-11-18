@@ -185,7 +185,7 @@ def isle(a, H, job, kaynak, C):
     # ---- picture: decode only the needed range, keep the mapped frames ----
     out_v = os.path.join(C, 'video.mp4')
     dec = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', kaynak, '-map', '0:v:0',
-                            '-vf', 'select=between(n\\,%d\\,%d)' % (K[0], K[-1]), '-vsync', '0',
+                            '-vf', 'select=between(n\\,%d\\,%d)' % (K[0], K[-1]), '-fps_mode', 'passthrough',
                             '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], stdout=subprocess.PIPE)
     enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (W, Hh),
                             '-r', '%g' % fps, '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', str(a.crf), '-g', '10',

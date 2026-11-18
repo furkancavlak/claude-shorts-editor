@@ -92,7 +92,7 @@ def main():
     W, H = 1920, 1080
     dec = subprocess.Popen([
         'ffmpeg', '-v', 'error', '-i', SRC, '-map', '0:v:0',
-        '-vf', 'select=between(n\\,%d\\,%d)' % (k_first, k_last), '-vsync', '0',
+        '-vf', 'select=between(n\\,%d\\,%d)' % (k_first, k_last), '-fps_mode', 'passthrough',
         '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], stdout=subprocess.PIPE)
     enc = subprocess.Popen([
         'ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (W, H),
